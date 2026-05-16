@@ -1,0 +1,836 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>福國路都更整合系統</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue-dark:#1e3a5f;--blue:#2563eb;--blue-light:#eff6ff;
+  --green:#22c55e;--green-bg:#dcfce7;--green-dark:#15803d;
+  --red:#ef4444;--red-bg:#fee2e2;
+  --amber:#f59e0b;--amber-bg:#fef3c7;
+  --purple:#8b5cf6;--purple-bg:#ede9fe;
+  --slate-50:#f8fafc;--slate-100:#f1f5f9;--slate-200:#e2e8f0;
+  --slate-400:#94a3b8;--slate-500:#64748b;--slate-600:#475569;--slate-900:#1e293b;
+  --shadow:0 2px 12px rgba(0,0,0,.07);--shadow-sm:0 1px 6px rgba(0,0,0,.06);
+  --r:12px;--rl:16px;
+}
+body{font-family:'Noto Sans TC',sans-serif;background:#f0f4f8;color:var(--slate-900);min-height:100vh}
+.app-header{background:linear-gradient(135deg,var(--blue-dark),var(--blue));color:#fff;padding:16px 18px 0;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(30,58,95,.25)}
+.header-inner{max-width:860px;margin:0 auto}
+.header-top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.header-icon{background:rgba(255,255,255,.18);border-radius:9px;padding:6px 10px;font-size:20px}
+.header-title{font-size:17px;font-weight:900;letter-spacing:.4px}
+.header-sub{font-size:10px;opacity:.7;margin-top:1px}
+.export-btns{margin-left:auto;display:flex;gap:6px}
+.export-btn{padding:6px 12px;border:none;border-radius:7px;cursor:pointer;font-weight:800;font-size:11px;font-family:inherit;display:flex;align-items:center;gap:3px;transition:all .2s}
+.btn-excel{background:var(--green);color:#fff}.btn-excel:hover{background:#16a34a}
+.btn-pdf{background:var(--red);color:#fff}.btn-pdf:hover{background:#dc2626}
+.btn-sync{background:var(--amber);color:#fff}.btn-sync:hover{background:#d97706}
+.tabs{display:flex;gap:3px;flex-wrap:wrap}
+.tab-btn{padding:8px 13px;border:none;cursor:pointer;font-size:12px;font-weight:700;font-family:inherit;border-radius:7px 7px 0 0;background:rgba(255,255,255,.15);color:rgba(255,255,255,.85);transition:all .2s;white-space:nowrap}
+.tab-btn.active{background:#fff;color:var(--blue-dark)}
+.content{max-width:860px;margin:0 auto;padding:18px 14px 48px}
+.tab-panel{display:none;flex-direction:column;gap:14px}
+.tab-panel.active{display:flex}
+.card{background:#fff;border-radius:var(--rl);padding:18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.card-title{font-weight:800;font-size:14px;color:var(--slate-900);margin-bottom:3px}
+.card-sub{font-size:11px;color:var(--slate-400);margin-bottom:12px}
+.tc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tc{border-radius:var(--r);padding:14px;border:2px solid;position:relative;transition:all .4s}
+.tc.ok{border-color:var(--green);background:linear-gradient(135deg,#f0fdf4,#dcfce7)}
+.tc.ng{border-color:var(--slate-200);background:#fff}
+.tc-badge{position:absolute;top:9px;right:9px;font-size:10px;font-weight:800;padding:2px 7px;border-radius:99px}
+.tc-badge.ok{background:var(--green);color:#fff}.tc-badge.ng{background:var(--slate-100);color:var(--slate-500)}
+.tc-icon{font-size:16px;margin-bottom:5px}
+.tc-title{font-size:11px;font-weight:800;color:var(--slate-500);margin-bottom:7px;line-height:1.4}
+.tc-pct{font-size:28px;font-weight:900;line-height:1}
+.tc-pct.ok{color:var(--green)}.tc-pct.ng{color:var(--slate-900)}
+.tc-detail{font-size:10px;color:var(--slate-400);margin-top:2px}
+.tc-bar{margin-top:7px;background:var(--slate-200);border-radius:99px;height:5px;overflow:hidden}
+.tc-bar-f{height:100%;border-radius:99px;transition:width 1s ease}
+.tc-bar-f.ok{background:var(--green)}.tc-bar-f.ng{background:var(--amber)}
+.tc-needed{font-size:10px;color:var(--amber);margin-top:3px;min-height:13px}
+.charts-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px}
+.chart-block{display:flex;flex-direction:column;align-items:center;gap:5px}
+.chart-label{font-size:11px;font-weight:800;color:var(--slate-600);text-align:center;line-height:1.3}
+.chart-label span{display:block;font-size:9px;font-weight:400;color:var(--slate-400);margin-top:1px}
+.leg{width:100%}
+.leg-item{display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.leg-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.leg-lbl{font-size:10px;color:var(--slate-600);flex:1}
+.leg-val{font-weight:800;font-size:11px}
+.leg-pct{font-size:9px;color:var(--slate-400);min-width:26px;text-align:right}
+.leg-foot{border-top:1px solid var(--slate-100);padding-top:5px;margin-top:2px;display:flex;justify-content:space-between;font-size:10px;color:var(--slate-500)}
+.ms-item{display:flex;align-items:flex-start;gap:9px;margin-bottom:10px;position:relative}
+.ms-line{position:absolute;left:12px;top:24px;width:2px;height:16px}
+.ms-circle{width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800}
+.ms-circle.done{background:var(--green);color:#fff;border:2px solid var(--green)}
+.ms-circle.todo{background:var(--slate-100);color:var(--slate-400);border:2px solid var(--slate-200)}
+.ms-name{font-size:12px;font-weight:700}
+.ms-name.done{color:var(--slate-900)}.ms-name.todo{color:var(--slate-500)}
+.ms-desc{font-size:10px;color:var(--slate-400);margin-top:1px}
+.ms-badge{font-size:10px;color:var(--green);font-weight:800;background:var(--green-bg);padding:2px 6px;border-radius:99px;white-space:nowrap}
+.sum-badges{display:flex;gap:7px;flex-wrap:wrap}
+.s-badge{display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:99px;font-size:11px;font-weight:700}
+.survey-card{background:#fff;border-radius:var(--r);padding:11px 13px;box-shadow:var(--shadow-sm);border-left:4px solid;margin-bottom:8px}
+.status-btns{display:flex;gap:4px;flex-wrap:wrap}
+.status-btn{padding:3px 8px;border-radius:99px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;border:2px solid}
+.filter-bar{background:#fff;border-radius:var(--r);padding:10px 12px;box-shadow:var(--shadow-sm);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.filter-btn{padding:4px 11px;border:none;border-radius:99px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
+.filter-btn.active{background:var(--blue-dark);color:#fff}
+.filter-btn:not(.active){background:var(--slate-100);color:var(--slate-600)}
+.add-btn{margin-left:auto;padding:4px 11px;border:none;border-radius:99px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--blue);color:#fff}
+.add-form{background:var(--blue-light);border-radius:var(--r);padding:13px;border:2px solid #bfdbfe;margin-bottom:9px}
+.add-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px}
+.fi{padding:7px 10px;border:1.5px solid #bfdbfe;border-radius:7px;font-size:12px;font-family:inherit;outline:none;width:100%}
+.fi:focus{border-color:var(--blue)}
+.fa{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.confirm-btn{margin-left:auto;padding:4px 12px;border:none;border-radius:99px;background:var(--blue-dark);color:#fff;font-weight:700;font-size:11px;cursor:pointer;font-family:inherit}
+.cancel-btn{padding:4px 10px;border:1px solid var(--slate-200);border-radius:99px;background:#fff;color:var(--slate-500);font-weight:700;font-size:11px;cursor:pointer;font-family:inherit}
+.floor-group{background:#fff;border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow-sm);margin-bottom:8px}
+.floor-header{background:var(--slate-50);padding:8px 13px;border-bottom:1px solid var(--slate-100);font-weight:800;font-size:12px;color:var(--slate-600)}
+.unit-row{padding:10px 13px;border-bottom:1px solid var(--slate-50);display:flex;align-items:center;gap:8px}
+.unit-icon{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;flex-shrink:0}
+.unit-name{font-weight:700;font-size:12px}
+.unit-owner{font-weight:400;color:var(--slate-500)}
+.unit-meta{font-size:10px;color:var(--slate-400);margin-top:1px}
+.status-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;white-space:nowrap}
+.edit-btn{padding:3px 7px;border:1px solid var(--slate-200);border-radius:99px;background:#fff;color:var(--slate-500);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit}
+.edit-form{width:100%}
+.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+.edit-actions{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.save-btn{margin-left:auto;padding:3px 11px;border:none;border-radius:99px;background:var(--green);color:#fff;font-weight:700;font-size:10px;cursor:pointer;font-family:inherit}
+.rank-table{width:100%;border-collapse:collapse;font-size:12px}
+.rank-table th{background:var(--blue-dark);color:#fff;padding:8px 10px;text-align:left;font-weight:700;white-space:nowrap}
+.rank-table th.num{text-align:right}
+.rank-table td{padding:7px 10px;border-bottom:1px solid var(--slate-100);vertical-align:middle}
+.rank-table td.num{text-align:right;font-weight:700;font-size:11px}
+.rank-table tr:nth-child(even) td{background:var(--slate-50)}
+.rank-pct-bar{display:inline-block;height:6px;border-radius:99px;margin-left:6px;vertical-align:middle}
+.rank-no{font-size:10px;color:var(--slate-400);font-weight:700;min-width:20px}
+.export-panel{display:flex;gap:10px}
+.export-card{flex:1;padding:13px;border-radius:var(--r);cursor:pointer;border:2px solid;display:flex;flex-direction:column;align-items:center;gap:4px;font-weight:800;font-size:13px;font-family:inherit;transition:all .2s;background:#fff}
+.export-card.green{border-color:var(--green);color:var(--green-dark);background:#f0fdf4}
+.export-card.red{border-color:var(--red);color:#dc2626;background:#fff5f5}
+.export-card .icon{font-size:24px}
+.export-card .desc{font-size:10px;font-weight:400;color:var(--slate-500)}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);padding:9px 20px;border-radius:99px;font-size:12px;font-weight:700;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:999;white-space:nowrap;animation:toastIn .25s ease;pointer-events:none}
+.toast.success{background:var(--slate-900);color:#fff}
+.toast.error{background:var(--red);color:#fff}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+@media(max-width:560px){
+  .charts-row{grid-template-columns:1fr 1fr!important}
+  .tc-pct{font-size:22px}
+  .header-title{font-size:14px}
+  .export-btn .label{display:none}
+  .add-grid,.edit-grid{grid-template-columns:1fr}
+  .export-panel{flex-direction:column}
+  .tabs{gap:2px}
+  .tab-btn{padding:7px 10px;font-size:11px}
+}
+.card-loader{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,.82);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:1000;backdrop-filter:blur(2px);border-radius:var(--rl);transition:opacity .3s}
+.spinner-large{width:36px;height:36px;border:4px solid #e2e8f0;border-top:4px solid #2563eb;border-radius:50%;animation:spin .85s linear infinite}
+.card-loader .loader-text{margin-top:10px;font-size:12px;color:#1e3a5f;font-weight:700;letter-spacing:.3px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#three-container{display:block;outline:none;cursor:grab}
+#3dmap-tooltip{font-family:'Noto Sans TC',sans-serif;line-height:1.5}
+#3dmap-tooltip .addr{font-weight:800;font-size:12px;margin-bottom:4px;color:var(--blue-dark)}
+#3dmap-tooltip .row{display:flex;justify-content:space-between;gap:12px;margin-bottom:2px}
+#3dmap-tooltip .label{color:var(--slate-500)}
+#3dmap-tooltip .val{font-weight:700;color:var(--slate-900)}
+#3dmap-tooltip .status-badge{display:inline-block;padding:1px 6px;border-radius:99px;font-size:9px;font-weight:800;margin-top:6px}
+#3dmap-legend .leg-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+#3dmap-legend .leg-color{width:14px;height:14px;border-radius:3px}
+#3dmap-legend .leg-text{color:var(--slate-600);font-weight:600}
+#3dmap-legend .filter-status{border-top:1px solid var(--slate-100);margin-top:8px;padding-top:8px;font-size:9px;color:var(--slate-400)}
+</style>
+</head>
+<body>
+<div class="app-header">
+  <div class="header-inner">
+    <div class="header-top">
+      <div class="header-icon">🏗️</div>
+      <div>
+        <div class="header-title">福國路都更整合系統</div>
+        <div class="header-sub">士林區蘭雅段二小段 ｜ 土地總面積6,510.0m² ｜ 建物總面積15,201.25m²</div>
+        <div class="header-sub">本系統供更新會幹部追蹤意願調查進度，4項門檻須全部達80%始得申請都更</div>
+      </div>
+      <div class="export-btns">
+        <button class="export-btn btn-excel" onclick="exportExcel()">📊 <span class="label">Excel</span></button>
+        <button class="export-btn btn-pdf" onclick="exportPDF()">📄 <span class="label">PDF</span></button>
+        <button class="export-btn btn-sync sync-action-btn" onclick="syncToCloud()">☁️ <span class="label">雲端同步</span></button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('dashboard',this)">📊 門檻總覽</button>
+      <button class="tab-btn" onclick="switchTab('survey',this)">📋 意願調查</button>
+      <button class="tab-btn" onclick="switchTab('rank-bldg',this)">🏢 建物排名</button>
+      <button class="tab-btn" onclick="switchTab('rank-land',this)">🗺️ 土地排名</button>
+      <button class="tab-btn" onclick="switchTab('units',this)">🏠 住戶明細</button>
+      <button class="tab-btn" onclick="switchTab('3dmap',this)">🏗️ 3D 地圖</button>
+    </div>
+  </div>
+</div>
+
+<div class="content">
+  <div id="tab-dashboard" class="tab-panel active">
+    <div class="card">
+      <div class="card-title">🏆 都更同意門檻</div>
+      <div class="card-sub" id="tc-summary">4項門檻須全部達80% 始得申請</div>
+      <div class="tc-grid">
+        <div class="tc ng" id="tc3"><span class="tc-badge ng" id="tc3-badge">未達標</span><div class="tc-icon">👤</div><div class="tc-title">建物所有權人數</div><div class="tc-pct ng" id="tc3-pct">0%</div><div class="tc-detail" id="tc3-d"></div><div class="tc-bar"><div class="tc-bar-f ng" id="tc3-bar" style="width:0%"></div></div><div class="tc-needed" id="tc3-n"></div></div>
+        <div class="tc ng" id="tc1"><span class="tc-badge ng" id="tc1-badge">未達標</span><div class="tc-icon">👤</div><div class="tc-title">土地所有權人數</div><div class="tc-pct ng" id="tc1-pct">0%</div><div class="tc-detail" id="tc1-d"></div><div class="tc-bar"><div class="tc-bar-f ng" id="tc1-bar" style="width:0%"></div></div><div class="tc-needed" id="tc1-n"></div></div>
+        <div class="tc ng" id="tc4"><span class="tc-badge ng" id="tc4-badge">未達標</span><div class="tc-icon">📐</div><div class="tc-title">建物同意面積</div><div class="tc-pct ng" id="tc4-pct">0%</div><div class="tc-detail" id="tc4-d"></div><div class="tc-bar"><div class="tc-bar-f ng" id="tc4-bar" style="width:0%"></div></div><div class="tc-needed" id="tc4-n"></div></div>
+        <div class="tc ng" id="tc2"><span class="tc-badge ng" id="tc2-badge">未達標</span><div class="tc-icon">🗺️</div><div class="tc-title">土地同意面積</div><div class="tc-pct ng" id="tc2-pct">0%</div><div class="tc-detail" id="tc2-d"></div><div class="tc-bar"><div class="tc-bar-f ng" id="tc2-bar" style="width:0%"></div></div><div class="tc-needed" id="tc2-n"></div></div>
+      </div>
+    </div>
+    <div class="card"><div class="card-title">📈 里程碑</div><div id="milestones"></div></div>
+    <div class="card"><div class="card-title">📊 比例圖</div><div class="charts-row" id="charts-row"></div></div>
+    <div class="card" id="sync-card">
+      <div class="card-title">☁️ Google Sheets 雲端同步</div>
+      <div class="card-sub">
+        <input id="gas-url-input" type="text" placeholder="貼上 Apps Script 網址" style="width:100%;padding:6px 10px;border:1.5px solid #bfdbfe;border-radius:7px;font-size:11px;font-family:inherit;margin-bottom:6px">
+        <button onclick="setGasUrl()" style="padding:4px 12px;border:none;border-radius:99px;background:var(--blue);color:#fff;font-weight:700;font-size:11px;cursor:pointer;font-family:inherit;margin-right:4px">儲存網址</button>
+        <button class="sync-action-btn" onclick="syncToCloud()" style="padding:4px 12px;border:none;border-radius:99px;background:var(--green);color:#fff;font-weight:700;font-size:11px;cursor:pointer;font-family:inherit">⬆ 同步到雲端</button>
+        <button class="sync-action-btn" onclick="syncFromCloud()" style="padding:4px 12px;border:none;border-radius:99px;background:var(--amber);color:#fff;font-weight:700;font-size:11px;cursor:pointer;font-family:inherit;margin-left:4px">⬇ 從雲端拉取</button>
+        <div id="sync-status" style="font-size:10px;color:var(--slate-400);margin-top:6px">尚未同步</div>
+      </div>
+    </div>
+  </div>
+  <div id="tab-survey" class="tab-panel">
+    <div class="card"><div class="card-title">📋 意願調查總覽</div><div id="survey-summary" class="sum-badges"></div></div>
+    <div id="survey-list"></div>
+  </div>
+  <div id="tab-rank-bldg" class="tab-panel">
+    <div class="card">
+      <div class="card-title">🏢 建物面積同意排名</div>
+      <div class="card-sub">依建物佔比排序，佔比越高推動力越強</div>
+      <table class="rank-table"><thead><tr><th>#</th><th>地址</th><th class="num">建物m²</th><th class="num">佔比</th><th class="num">同意率</th></tr></thead><tbody id="rank-bldg-body"></tbody></table>
+    </div>
+  </div>
+  <div id="tab-rank-land" class="tab-panel">
+    <div class="card">
+      <div class="card-title">🗺️ 土地持分同意排名</div>
+      <div class="card-sub">依土地持分排序，持分越高影響力越大</div>
+      <table class="rank-table"><thead><tr><th>#</th><th>地址</th><th class="num">持分m²</th><th class="num">佔比</th><th class="num">同意率</th></tr></thead><tbody id="rank-land-body"></tbody></table>
+    </div>
+  </div>
+  <div id="tab-units" class="tab-panel">
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="setFilter('all',this)">全部</button>
+      <button class="filter-btn" onclick="setFilter('agree',this)">同意</button>
+      <button class="filter-btn" onclick="setFilter('disagree',this)">不同意</button>
+      <button class="filter-btn" onclick="setFilter('other',this)">觀望中</button>
+      <button class="filter-btn" onclick="setFilter('pending',this)">聯繫中</button>
+      <button class="add-btn" onclick="toggleAddForm()">＋新增住戶</button>
+    </div>
+    <div id="add-form-wrap" style="display:none"></div>
+    <div id="units-list"></div>
+  </div>
+  <div id="tab-3dmap" class="tab-panel">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="card-title" style="padding:18px 18px 0">🏗️ 3D 建物地圖 <span style="font-size:10px;font-weight:400;color:#94a3b8">v3.0 Three.js</span></div>
+      <div class="card-sub" style="padding:0 18px 8px">每棟建築依樓層繪製，顏色代表同意狀態 ｜ 拖曳旋轉 · 滾輪縮放 · 懸停查看</div>
+      <div class="filter-bar" style="margin:0 18px 12px;border-radius:99px">
+        <button class="filter-btn active" onclick="set3DFilter('all',this)">全部</button>
+        <button class="filter-btn" onclick="set3DFilter('agree',this)">同意</button>
+        <button class="filter-btn" onclick="set3DFilter('disagree',this)">不同意</button>
+        <button class="filter-btn" onclick="set3DFilter('other',this)">觀望中</button>
+        <button class="filter-btn" onclick="set3DFilter('pending',this)">聯繫中</button>
+      </div>
+      <div id="3dmap-wrap" style="width:100%;height:600px;position:relative;border-radius:var(--rl);overflow:hidden;background:linear-gradient(180deg,#f0f9ff 0%,#e0f2fe 100%)">
+        <div id="three-container" style="width:100%;height:100%"></div>
+        <div id="3dmap-tooltip" style="position:absolute;pointer-events:none;background:#fff;border-radius:12px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);font-size:11px;z-index:1000;display:none;max-width:280px;border:1px solid var(--slate-200)"></div>
+        <div id="3dmap-legend" style="position:absolute;bottom:16px;left:16px;background:#fff;border-radius:12px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);font-size:10px;z-index:1000;border:1px solid var(--slate-200)"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast success" style="display:none"></div>
+
+<script>
+var map3dReady = false;
+
+const LAND_TOTAL = 6510.0;
+const BLDG_TOTAL = 15201.252;
+const LAND_AGREE = 4044.0;
+const LAND_DISAGREE = 0;
+const LAND_OTHER = 0;
+const LAND_PENDING = 2466.0;
+
+const STATUS = {
+  agree:    {label:'同意',   color:'#22c55e', bg:'#dcfce7', icon:'✓'},
+  disagree: {label:'不同意', color:'#ef4444', bg:'#fee2e2', icon:'✕'},
+  other:    {label:'觀望中',  color:'#8b5cf6', bg:'#ede9fe', icon:'…'},
+  pending:  {label:'聯繫中', color:'#f59e0b', bg:'#fef3c7', icon:'?'},
+};
+
+const MILESTONES = [
+  {label:'啟動說明會', date:'2026/04/12', done:true, icon:'🚀', type:'event'},
+  {label:'所有權人同意達 25%', target:25, type:'owner', icon:'👤'},
+  {label:'土地持分同意達 25%', target:25, type:'land',  icon:'🗺️'},
+  {label:'建物面積同意達 25%', target:25, type:'bldg',  icon:'📐'},
+  {label:'所有權人同意達 50%', target:50, type:'owner', icon:'👤'},
+  {label:'土地持分同意達 50%', target:50, type:'land',  icon:'🗺️'},
+  {label:'建物面積同意達 50%', target:50, type:'bldg',  icon:'📐'},
+  {label:'所有權人同意達 75%', target:75, type:'owner', icon:'👤'},
+  {label:'土地持分同意達 75%', target:75, type:'land',  icon:'🗺️'},
+  {label:'建物面積同意達 75%', target:75, type:'bldg',  icon:'📐'},
+  {label:'所有權人達標 80% 🏆', target:80, type:'owner', icon:'👤'},
+  {label:'土地持分達標 80% 🏆', target:80, type:'land',  icon:'🗺️'},
+  {label:'建物面積達標 80% 🏆', target:80, type:'bldg',  icon:'📐'},
+  {label:'4項門檻全部達標，可申請都更！', target:80, type:'all', icon:'🎉'},
+];;
+
+let units = [{"id":"u0","addr":"福國路34號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":44.954916,"bldgArea":98.568,"isLandOnly":false,"landSharePct":0.690552,"bldgPct":0.64842},{"id":"u1","addr":"福國路34號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":44.954916,"bldgArea":98.568,"isLandOnly":false,"landSharePct":0.690552,"bldgPct":0.64842},{"id":"u2","addr":"福國路34號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":44.954916,"bldgArea":98.568,"isLandOnly":false,"landSharePct":0.690552,"bldgPct":0.64842},{"id":"u3","addr":"福國路34號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":44.954916,"bldgArea":98.568,"isLandOnly":false,"landSharePct":0.690552,"bldgPct":0.64842},{"id":"u4","addr":"福國路36號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":45.03146,"bldgArea":98.904,"isLandOnly":false,"landSharePct":0.691727,"bldgPct":0.650631},{"id":"u5","addr":"福國路36號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":45.03146,"bldgArea":98.904,"isLandOnly":false,"landSharePct":0.691727,"bldgPct":0.650631},{"id":"u6","addr":"福國路36號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":45.03146,"bldgArea":98.904,"isLandOnly":false,"landSharePct":0.691727,"bldgPct":0.650631},{"id":"u7","addr":"福國路36號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":45.03146,"bldgArea":98.904,"isLandOnly":false,"landSharePct":0.691727,"bldgPct":0.650631},{"id":"u8","addr":"福國路38號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":45.951226,"bldgArea":101.844,"isLandOnly":false,"landSharePct":0.705856,"bldgPct":0.669971},{"id":"u9","addr":"福國路38號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":45.951226,"bldgArea":101.844,"isLandOnly":false,"landSharePct":0.705856,"bldgPct":0.669971},{"id":"u10","addr":"福國路38號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":45.951226,"bldgArea":101.844,"isLandOnly":false,"landSharePct":0.705856,"bldgPct":0.669971},{"id":"u11","addr":"福國路38號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":45.951226,"bldgArea":101.844,"isLandOnly":false,"landSharePct":0.705856,"bldgPct":0.669971},{"id":"u12","addr":"福國路40號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":45.463391,"bldgArea":100.8,"isLandOnly":false,"landSharePct":0.698362,"bldgPct":0.663103},{"id":"u13","addr":"福國路40號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":45.463391,"bldgArea":100.8,"isLandOnly":false,"landSharePct":0.698362,"bldgPct":0.663103},{"id":"u14","addr":"福國路40號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":45.463391,"bldgArea":100.8,"isLandOnly":false,"landSharePct":0.698362,"bldgPct":0.663103},{"id":"u15","addr":"福國路40號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":45.463391,"bldgArea":100.8,"isLandOnly":false,"landSharePct":0.698362,"bldgPct":0.663103},{"id":"u16","addr":"福國路42號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":44.464347,"bldgArea":97.512,"isLandOnly":false,"landSharePct":0.683016,"bldgPct":0.641473},{"id":"u17","addr":"福國路42號","unit":"2樓","owner":"未登記","phone":"0933-853-626","status":"agree","note":"??0933-853-626","landNo":"1170000","landShare":44.464347,"bldgArea":97.512,"isLandOnly":false,"landSharePct":0.683016,"bldgPct":0.641473},{"id":"u18","addr":"福國路42號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":44.464347,"bldgArea":97.512,"isLandOnly":false,"landSharePct":0.683016,"bldgPct":0.641473},{"id":"u19","addr":"福國路42號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":44.464347,"bldgArea":97.512,"isLandOnly":false,"landSharePct":0.683016,"bldgPct":0.641473},{"id":"u20","addr":"福國路44號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":43.918815,"bldgArea":96.504,"isLandOnly":false,"landSharePct":0.674636,"bldgPct":0.634842},{"id":"u21","addr":"福國路44號","unit":"2樓","owner":"未登記","phone":"0933-853-626","status":"agree","note":"??0933-853-626","landNo":"1170000","landShare":43.427309,"bldgArea":95.424,"isLandOnly":false,"landSharePct":0.667086,"bldgPct":0.627738},{"id":"u22","addr":"福國路44號","unit":"3樓","owner":"未登記","phone":"0921-838-414","status":"pending","note":"??0921-838-414","landNo":"1170000","landShare":43.427309,"bldgArea":95.424,"isLandOnly":false,"landSharePct":0.667086,"bldgPct":0.627738},{"id":"u23","addr":"福國路44號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":43.427309,"bldgArea":95.424,"isLandOnly":false,"landSharePct":0.667086,"bldgPct":0.627738},{"id":"u24","addr":"福國路46號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":42.707102,"bldgArea":94.188,"isLandOnly":false,"landSharePct":0.656023,"bldgPct":0.619607},{"id":"u25","addr":"福國路46號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":42.707102,"bldgArea":94.188,"isLandOnly":false,"landSharePct":0.656023,"bldgPct":0.619607},{"id":"u26","addr":"福國路46號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":42.707102,"bldgArea":94.188,"isLandOnly":false,"landSharePct":0.656023,"bldgPct":0.619607},{"id":"u27","addr":"福國路46號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":42.707102,"bldgArea":94.188,"isLandOnly":false,"landSharePct":0.656023,"bldgPct":0.619607},{"id":"u28","addr":"福國路48號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":41.835313,"bldgArea":92.556,"isLandOnly":false,"landSharePct":0.642632,"bldgPct":0.608871},{"id":"u29","addr":"福國路48號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":41.835313,"bldgArea":92.556,"isLandOnly":false,"landSharePct":0.642632,"bldgPct":0.608871},{"id":"u30","addr":"福國路48號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":41.835313,"bldgArea":92.556,"isLandOnly":false,"landSharePct":0.642632,"bldgPct":0.608871},{"id":"u31","addr":"福國路48號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":41.835313,"bldgArea":92.556,"isLandOnly":false,"landSharePct":0.642632,"bldgPct":0.608871},{"id":"u32","addr":"福國路50巷2弄1號","unit":"1樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170000","landShare":52.412545,"bldgArea":109.356,"isLandOnly":false,"landSharePct":0.805108,"bldgPct":0.719388},{"id":"u33","addr":"福國路50巷2弄3號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":40.227328,"bldgArea":81.108,"isLandOnly":false,"landSharePct":0.617931,"bldgPct":0.533561},{"id":"u34","addr":"福國路50巷2弄3號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":40.227328,"bldgArea":81.108,"isLandOnly":false,"landSharePct":0.617931,"bldgPct":0.533561},{"id":"u35","addr":"福國路50巷2弄3號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":40.227328,"bldgArea":81.108,"isLandOnly":false,"landSharePct":0.617931,"bldgPct":0.533561},{"id":"u36","addr":"福國路50巷2弄3號","unit":"4樓","owner":"未登記","phone":"0930-540412","status":"agree","note":"??0930-540412","landNo":"1170000","landShare":40.227328,"bldgArea":81.108,"isLandOnly":false,"landSharePct":0.617931,"bldgPct":0.533561},{"id":"u37","addr":"福國路50巷2弄5號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":38.723091,"bldgArea":79.992,"isLandOnly":false,"landSharePct":0.594825,"bldgPct":0.52622},{"id":"u38","addr":"福國路50巷2弄5號","unit":"2樓","owner":"未登記","phone":"0920-507-285","status":"agree","note":"??0920-507-285","landNo":"1170000","landShare":38.723091,"bldgArea":79.992,"isLandOnly":false,"landSharePct":0.594825,"bldgPct":0.52622},{"id":"u39","addr":"福國路50巷2弄5號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":38.723091,"bldgArea":79.992,"isLandOnly":false,"landSharePct":0.594825,"bldgPct":0.52622},{"id":"u40","addr":"福國路50巷2弄5號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":38.723091,"bldgArea":79.992,"isLandOnly":false,"landSharePct":0.594825,"bldgPct":0.52622},{"id":"u41","addr":"福國路50巷2弄7號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":38.723091,"bldgArea":79.992,"isLandOnly":false,"landSharePct":0.594825,"bldgPct":0.52622},{"id":"u42","addr":"福國路50巷2弄7號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":38.723091,"bldgArea":79.992,"isLandOnly":false,"landSharePct":0.594825,"bldgPct":0.52622},{"id":"u43","addr":"福國路50巷2弄7號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":38.723091,"bldgArea":79.992,"isLandOnly":false,"landSharePct":0.594825,"bldgPct":0.52622},{"id":"u44","addr":"福國路50巷2弄7號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":38.723091,"bldgArea":79.992,"isLandOnly":false,"landSharePct":0.594825,"bldgPct":0.52622},{"id":"u45","addr":"福國路50巷2弄9號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":34.995369,"bldgArea":72.408,"isLandOnly":false,"landSharePct":0.537563,"bldgPct":0.476329},{"id":"u46","addr":"福國路50巷2弄9號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":34.995369,"bldgArea":72.408,"isLandOnly":false,"landSharePct":0.537563,"bldgPct":0.476329},{"id":"u47","addr":"福國路50巷2弄9號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":34.995369,"bldgArea":72.408,"isLandOnly":false,"landSharePct":0.537563,"bldgPct":0.476329},{"id":"u48","addr":"福國路50巷2弄9號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":34.995369,"bldgArea":72.408,"isLandOnly":false,"landSharePct":0.537563,"bldgPct":0.476329},{"id":"u49","addr":"福國路50巷2弄11號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":42.877276,"bldgArea":89.448,"isLandOnly":false,"landSharePct":0.658637,"bldgPct":0.588425},{"id":"u50","addr":"福國路50巷2弄11號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":42.877276,"bldgArea":89.448,"isLandOnly":false,"landSharePct":0.658637,"bldgPct":0.588425},{"id":"u51","addr":"福國路50巷2弄11號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":42.877276,"bldgArea":89.448,"isLandOnly":false,"landSharePct":0.658637,"bldgPct":0.588425},{"id":"u52","addr":"福國路50巷2弄13號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":28.291977,"bldgArea":62.736,"isLandOnly":false,"landSharePct":0.434593,"bldgPct":0.412703},{"id":"u53","addr":"福國路50巷2弄13號","unit":"2樓","owner":"未登記","phone":"0952-995-371","status":"agree","note":"??0952-995-371","landNo":"1170000","landShare":28.291977,"bldgArea":62.736,"isLandOnly":false,"landSharePct":0.434593,"bldgPct":0.412703},{"id":"u54","addr":"福國路50巷2弄13號","unit":"3樓","owner":"未登記","phone":"0921-832-966","status":"agree","note":"??0921-832-966","landNo":"1170000","landShare":28.291977,"bldgArea":62.736,"isLandOnly":false,"landSharePct":0.434593,"bldgPct":0.412703},{"id":"u55","addr":"福國路50巷2弄13號","unit":"4樓","owner":"未登記","phone":"0931-080-685","status":"agree","note":"??0931-080-685","landNo":"1170000","landShare":28.291977,"bldgArea":62.736,"isLandOnly":false,"landSharePct":0.434593,"bldgPct":0.412703},{"id":"u56","addr":"福國路50巷2弄15號","unit":"1樓","owner":"未登記","phone":"","status":"other","note":"撣?鞈?策??","landNo":"1170000","landShare":39.021068,"bldgArea":81.3,"isLandOnly":false,"landSharePct":0.599402,"bldgPct":0.534824},{"id":"u57","addr":"福國路50巷2弄15號","unit":"2樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170000","landShare":39.021068,"bldgArea":81.3,"isLandOnly":false,"landSharePct":0.599402,"bldgPct":0.534824},{"id":"u58","addr":"福國路50巷2弄15號","unit":"3樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170000","landShare":39.021068,"bldgArea":81.3,"isLandOnly":false,"landSharePct":0.599402,"bldgPct":0.534824},{"id":"u59","addr":"福國路50巷2弄15號","unit":"4樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170000","landShare":39.021068,"bldgArea":81.3,"isLandOnly":false,"landSharePct":0.599402,"bldgPct":0.534824},{"id":"u60","addr":"福國路50巷6弄1號","unit":"1樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170000","landShare":28.541977,"bldgArea":62.736,"isLandOnly":false,"landSharePct":0.438433,"bldgPct":0.412703},{"id":"u61","addr":"福國路50巷6弄1號","unit":"2樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170000","landShare":28.541977,"bldgArea":62.736,"isLandOnly":false,"landSharePct":0.438433,"bldgPct":0.412703},{"id":"u62","addr":"福國路50巷6弄1號","unit":"3樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170000","landShare":28.541977,"bldgArea":62.736,"isLandOnly":false,"landSharePct":0.438433,"bldgPct":0.412703},{"id":"u63","addr":"福國路50巷6弄1號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":28.541977,"bldgArea":62.736,"isLandOnly":false,"landSharePct":0.438433,"bldgPct":0.412703},{"id":"u64","addr":"福國路50巷6弄3號","unit":"1樓","owner":"未登記","phone":"","status":"disagree","note":"","landNo":"1170000","landShare":38.514097,"bldgArea":80.172,"isLandOnly":false,"landSharePct":0.591614,"bldgPct":0.527404},{"id":"u65","addr":"福國路50巷6弄3號","unit":"2樓","owner":"未登記","phone":"0920-917-977","status":"agree","note":"??0920-917-977","landNo":"1170000","landShare":38.514097,"bldgArea":80.172,"isLandOnly":false,"landSharePct":0.591614,"bldgPct":0.527404},{"id":"u66","addr":"福國路50巷6弄3號","unit":"3樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170000","landShare":38.514097,"bldgArea":80.172,"isLandOnly":false,"landSharePct":0.591614,"bldgPct":0.527404},{"id":"u67","addr":"福國路50巷6弄3號","unit":"4樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170000","landShare":38.514097,"bldgArea":80.172,"isLandOnly":false,"landSharePct":0.591614,"bldgPct":0.527404},{"id":"u68","addr":"福國路50巷6弄5號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":28.189325,"bldgArea":61.188,"isLandOnly":false,"landSharePct":0.433016,"bldgPct":0.402519},{"id":"u69","addr":"福國路50巷6弄5號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":28.189325,"bldgArea":61.188,"isLandOnly":false,"landSharePct":0.433016,"bldgPct":0.402519},{"id":"u70","addr":"福國路50巷6弄5號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":28.189325,"bldgArea":61.188,"isLandOnly":false,"landSharePct":0.433016,"bldgPct":0.402519},{"id":"u71","addr":"福國路50巷6弄5號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":28.189325,"bldgArea":61.188,"isLandOnly":false,"landSharePct":0.433016,"bldgPct":0.402519},{"id":"u72","addr":"福國路50巷6弄7號","unit":"1樓","owner":"未登記","phone":"","status":"other","note":"閫??, ","landNo":"1170000","landShare":38.514097,"bldgArea":80.172,"isLandOnly":false,"landSharePct":0.591614,"bldgPct":0.527404},{"id":"u73","addr":"福國路50巷6弄7號","unit":"2樓","owner":"未登記","phone":"0906-699289","status":"agree","note":"??0906-699289","landNo":"1170000","landShare":38.514097,"bldgArea":80.172,"isLandOnly":false,"landSharePct":0.591614,"bldgPct":0.527404},{"id":"u74","addr":"福國路50巷6弄7號","unit":"3樓","owner":"未登記","phone":"0963-359-875","status":"agree","note":"??0963-359-875","landNo":"1170000","landShare":38.514097,"bldgArea":80.172,"isLandOnly":false,"landSharePct":0.591614,"bldgPct":0.527404},{"id":"u75","addr":"福國路50巷6弄7號","unit":"4樓","owner":"未登記","phone":"0912-380-340","status":"agree","note":"??0912-380-340","landNo":"1170000","landShare":38.514097,"bldgArea":80.172,"isLandOnly":false,"landSharePct":0.591614,"bldgPct":0.527404},{"id":"u76","addr":"福國路50巷6弄9號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":28.189325,"bldgArea":61.188,"isLandOnly":false,"landSharePct":0.433016,"bldgPct":0.402519},{"id":"u77","addr":"福國路50巷6弄9號","unit":"2樓","owner":"未登記","phone":"0935-565-395","status":"agree","note":"??0935-565-395","landNo":"1170000","landShare":28.189325,"bldgArea":61.188,"isLandOnly":false,"landSharePct":0.433016,"bldgPct":0.402519},{"id":"u78","addr":"福國路50巷6弄9號","unit":"3樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170000","landShare":28.189325,"bldgArea":61.188,"isLandOnly":false,"landSharePct":0.433016,"bldgPct":0.402519},{"id":"u79","addr":"福國路50巷6弄9號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":28.189325,"bldgArea":61.188,"isLandOnly":false,"landSharePct":0.433016,"bldgPct":0.402519},{"id":"u80","addr":"福國路50巷6弄11號","unit":"1樓","owner":"未登記","phone":"","status":"other","note":"閫??, ","landNo":"1170000","landShare":36.808245,"bldgArea":72.684,"isLandOnly":false,"landSharePct":0.565411,"bldgPct":0.478145},{"id":"u81","addr":"福國路50巷6弄11號","unit":"2樓","owner":"未登記","phone":"0961-534-519","status":"agree","note":"??0961-534-519","landNo":"1170000","landShare":36.808245,"bldgArea":72.684,"isLandOnly":false,"landSharePct":0.565411,"bldgPct":0.478145},{"id":"u82","addr":"福國路50巷6弄11號","unit":"3樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170000","landShare":36.808245,"bldgArea":72.684,"isLandOnly":false,"landSharePct":0.565411,"bldgPct":0.478145},{"id":"u83","addr":"福國路50巷6弄11號","unit":"4樓","owner":"未登記","phone":"0925-661-177","status":"agree","note":"??0925-661-177","landNo":"1170000","landShare":36.808245,"bldgArea":72.684,"isLandOnly":false,"landSharePct":0.565411,"bldgPct":0.478145},{"id":"u84","addr":"福國路50巷6弄13號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":28.541977,"bldgArea":62.736,"isLandOnly":false,"landSharePct":0.438433,"bldgPct":0.412703},{"id":"u85","addr":"福國路50巷6弄13號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170000","landShare":28.541977,"bldgArea":62.736,"isLandOnly":false,"landSharePct":0.438433,"bldgPct":0.412703},{"id":"u86","addr":"福國路50巷6弄13號","unit":"3樓","owner":"未登記","phone":"0930-899-969","status":"pending","note":"??0930-899-969","landNo":"1170000","landShare":28.541977,"bldgArea":62.736,"isLandOnly":false,"landSharePct":0.438433,"bldgPct":0.412703},{"id":"u87","addr":"福國路50巷6弄13號","unit":"4樓","owner":"未登記","phone":"0912-580-285","status":"agree","note":"??0912-580-285","landNo":"1170000","landShare":28.541977,"bldgArea":62.736,"isLandOnly":false,"landSharePct":0.438433,"bldgPct":0.412703},{"id":"u88","addr":"福國路50巷6弄15號","unit":"1樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170001","landShare":21.5,"bldgArea":94.692,"isLandOnly":false,"landSharePct":0.330261,"bldgPct":0.622922},{"id":"u89","addr":"福國路50巷6弄15號","unit":"2樓","owner":"未登記","phone":"0910-753-621","status":"agree","note":"??0910-753-621","landNo":"1170001","landShare":21.5,"bldgArea":94.692,"isLandOnly":false,"landSharePct":0.330261,"bldgPct":0.622922},{"id":"u90","addr":"福國路50巷6弄15號","unit":"3樓","owner":"未登記","phone":"0936-734-232","status":"agree","note":"??0936-734-232","landNo":"1170001","landShare":21.5,"bldgArea":94.692,"isLandOnly":false,"landSharePct":0.330261,"bldgPct":0.622922},{"id":"u91","addr":"福國路50巷6弄15號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170001","landShare":21.5,"bldgArea":94.692,"isLandOnly":false,"landSharePct":0.330261,"bldgPct":0.622922},{"id":"u92","addr":"福國路50巷6弄","unit":"純土地","owner":"宏盛建設","phone":"","status":"agree","note":"?∪遣?拍??","landNo":"1170004","landShare":419,"bldgArea":0,"isLandOnly":true,"landSharePct":6.436252,"bldgPct":0},{"id":"u93","addr":"福國路50巷6弄14號","unit":"1樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170006","landShare":22.25,"bldgArea":87.24,"isLandOnly":false,"landSharePct":0.341782,"bldgPct":0.5739},{"id":"u94","addr":"福國路50巷6弄14號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170006","landShare":22.25,"bldgArea":87.24,"isLandOnly":false,"landSharePct":0.341782,"bldgPct":0.5739},{"id":"u95","addr":"福國路50巷6弄14號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170006","landShare":22.25,"bldgArea":87.24,"isLandOnly":false,"landSharePct":0.341782,"bldgPct":0.5739},{"id":"u96","addr":"福國路50巷6弄14號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170006","landShare":22.25,"bldgArea":87.24,"isLandOnly":false,"landSharePct":0.341782,"bldgPct":0.5739},{"id":"u97","addr":"福國路50巷6弄15號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170008","landShare":21.366086,"bldgArea":85.2,"isLandOnly":false,"landSharePct":0.328204,"bldgPct":0.56048},{"id":"u98","addr":"福國路50巷6弄15號","unit":"2樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170008","landShare":21.633914,"bldgArea":86.268,"isLandOnly":false,"landSharePct":0.332318,"bldgPct":0.567506},{"id":"u99","addr":"福國路50巷6弄15號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170008","landShare":21.366086,"bldgArea":85.2,"isLandOnly":false,"landSharePct":0.328204,"bldgPct":0.56048},{"id":"u100","addr":"福國路50巷6弄15號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170008","landShare":21.633914,"bldgArea":86.268,"isLandOnly":false,"landSharePct":0.332318,"bldgPct":0.567506},{"id":"u101","addr":"福國路50巷2弄","unit":"純土地","owner":"宏盛建設","phone":"","status":"agree","note":"?∪遣?拍??","landNo":"1170010","landShare":473,"bldgArea":0,"isLandOnly":true,"landSharePct":7.265745,"bldgPct":0},{"id":"u102","addr":"中山北路六段35巷42號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":25.555411,"bldgArea":108.984,"isLandOnly":false,"landSharePct":0.392556,"bldgPct":0.716941},{"id":"u103","addr":"中山北路六段35巷42號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":25.555411,"bldgArea":108.984,"isLandOnly":false,"landSharePct":0.392556,"bldgPct":0.716941},{"id":"u104","addr":"中山北路六段35巷42號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":25.555411,"bldgArea":108.984,"isLandOnly":false,"landSharePct":0.392556,"bldgPct":0.716941},{"id":"u105","addr":"中山北路六段35巷42號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":25.555411,"bldgArea":108.984,"isLandOnly":false,"landSharePct":0.392556,"bldgPct":0.716941},{"id":"u106","addr":"中山北路六段35巷42號","unit":"5樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":25.555411,"bldgArea":108.984,"isLandOnly":false,"landSharePct":0.392556,"bldgPct":0.716941},{"id":"u107","addr":"中山北路六段35巷44號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":24.761905,"bldgArea":105.6,"isLandOnly":false,"landSharePct":0.380367,"bldgPct":0.69468},{"id":"u108","addr":"中山北路六段35巷44號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":24.761905,"bldgArea":105.6,"isLandOnly":false,"landSharePct":0.380367,"bldgPct":0.69468},{"id":"u109","addr":"中山北路六段35巷44號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":24.761905,"bldgArea":105.6,"isLandOnly":false,"landSharePct":0.380367,"bldgPct":0.69468},{"id":"u110","addr":"中山北路六段35巷44號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":24.761905,"bldgArea":105.6,"isLandOnly":false,"landSharePct":0.380367,"bldgPct":0.69468},{"id":"u111","addr":"中山北路六段35巷44號","unit":"5樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170011","landShare":24.761905,"bldgArea":105.6,"isLandOnly":false,"landSharePct":0.380367,"bldgPct":0.69468},{"id":"u112","addr":"中山北路六段35巷46號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":23.132684,"bldgArea":98.652,"isLandOnly":false,"landSharePct":0.355341,"bldgPct":0.648973},{"id":"u113","addr":"中山北路六段35巷46號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":23.132684,"bldgArea":98.652,"isLandOnly":false,"landSharePct":0.355341,"bldgPct":0.648973},{"id":"u114","addr":"中山北路六段35巷46號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":23.132684,"bldgArea":98.652,"isLandOnly":false,"landSharePct":0.355341,"bldgPct":0.648973},{"id":"u115","addr":"中山北路六段35巷46號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":23.132684,"bldgArea":98.652,"isLandOnly":false,"landSharePct":0.355341,"bldgPct":0.648973},{"id":"u116","addr":"中山北路六段35巷46號","unit":"5樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170011","landShare":23.132684,"bldgArea":98.652,"isLandOnly":false,"landSharePct":0.355341,"bldgPct":0.648973},{"id":"u117","addr":"福國路6號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":24.05,"bldgArea":102.564,"isLandOnly":false,"landSharePct":0.369432,"bldgPct":0.674708},{"id":"u118","addr":"福國路6號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":24.05,"bldgArea":102.564,"isLandOnly":false,"landSharePct":0.369432,"bldgPct":0.674708},{"id":"u119","addr":"福國路6號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":24.05,"bldgArea":102.564,"isLandOnly":false,"landSharePct":0.369432,"bldgPct":0.674708},{"id":"u120","addr":"福國路6號","unit":"5樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":24.05,"bldgArea":102.564,"isLandOnly":false,"landSharePct":0.369432,"bldgPct":0.674708},{"id":"u121","addr":"福國路6號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":24.05,"bldgArea":102.564,"isLandOnly":false,"landSharePct":0.369432,"bldgPct":0.674708},{"id":"u122","addr":"福國路6號","unit":"B1","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170011","landShare":97.5,"bldgArea":415.8,"isLandOnly":false,"landSharePct":1.497696,"bldgPct":2.735301},{"id":"u123","addr":"福國路24號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170012","landShare":18.25,"bldgArea":77.82,"isLandOnly":false,"landSharePct":0.280338,"bldgPct":0.511932},{"id":"u124","addr":"福國路24號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170012","landShare":18.25,"bldgArea":77.82,"isLandOnly":false,"landSharePct":0.280338,"bldgPct":0.511932},{"id":"u125","addr":"福國路24號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170012","landShare":18.25,"bldgArea":77.82,"isLandOnly":false,"landSharePct":0.280338,"bldgPct":0.511932},{"id":"u126","addr":"福國路24號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170012","landShare":18.25,"bldgArea":77.82,"isLandOnly":false,"landSharePct":0.280338,"bldgPct":0.511932},{"id":"u127","addr":"福國路50巷","unit":"純土地","owner":"宏盛建設","phone":"","status":"agree","note":"?∪遣?拍??","landNo":"1170014","landShare":331,"bldgArea":0,"isLandOnly":true,"landSharePct":5.084485,"bldgPct":0},{"id":"u128","addr":"福國路50巷2弄3號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170015","landShare":22.667693,"bldgArea":99.972,"isLandOnly":false,"landSharePct":0.348198,"bldgPct":0.657656},{"id":"u129","addr":"福國路50巷2弄3號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170015","landShare":22.99692,"bldgArea":101.424,"isLandOnly":false,"landSharePct":0.353255,"bldgPct":0.667208},{"id":"u130","addr":"福國路50巷2弄3號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170015","landShare":22.667693,"bldgArea":99.972,"isLandOnly":false,"landSharePct":0.348198,"bldgPct":0.657656},{"id":"u131","addr":"福國路50巷2弄3號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170015","landShare":22.667693,"bldgArea":99.972,"isLandOnly":false,"landSharePct":0.348198,"bldgPct":0.657656},{"id":"u132","addr":"福國路50巷2弄1號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170016","landShare":11.032657,"bldgArea":40.836,"isLandOnly":false,"landSharePct":0.169472,"bldgPct":0.268636},{"id":"u133","addr":"福國路50巷2弄1號","unit":"2樓","owner":"未登記","phone":"0916-026-266","status":"agree","note":"??0916-026-266","landNo":"1170016","landShare":28.322448,"bldgArea":104.832,"isLandOnly":false,"landSharePct":0.435061,"bldgPct":0.689627},{"id":"u134","addr":"福國路50巷2弄1號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170016","landShare":28.322448,"bldgArea":104.832,"isLandOnly":false,"landSharePct":0.435061,"bldgPct":0.689627},{"id":"u135","addr":"福國路50巷2弄1號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170016","landShare":28.322448,"bldgArea":104.832,"isLandOnly":false,"landSharePct":0.435061,"bldgPct":0.689627},{"id":"u136","addr":"福國路50巷6弄2號","unit":"1樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170021","landShare":27.955847,"bldgArea":110.82,"isLandOnly":false,"landSharePct":0.429429,"bldgPct":0.729019},{"id":"u137","addr":"福國路50巷6弄2號","unit":"2樓","owner":"未登記","phone":"0972-280-885","status":"agree","note":"??0972-280-885","landNo":"1170021","landShare":27.955847,"bldgArea":110.82,"isLandOnly":false,"landSharePct":0.429429,"bldgPct":0.729019},{"id":"u138","addr":"福國路50巷6弄2號","unit":"3樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170021","landShare":27.544153,"bldgArea":109.188,"isLandOnly":false,"landSharePct":0.423105,"bldgPct":0.718283},{"id":"u139","addr":"福國路50巷6弄2號","unit":"4樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170021","landShare":27.544153,"bldgArea":109.188,"isLandOnly":false,"landSharePct":0.423105,"bldgPct":0.718283},{"id":"u140","addr":"福國路50巷6弄4號","unit":"1樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170022","landShare":29.5,"bldgArea":116.676,"isLandOnly":false,"landSharePct":0.453149,"bldgPct":0.767542},{"id":"u141","addr":"福國路50巷6弄4號","unit":"2樓","owner":"未登記","phone":"0963-077-922","status":"agree","note":"??0963-077-922","landNo":"1170022","landShare":29.5,"bldgArea":116.676,"isLandOnly":false,"landSharePct":0.453149,"bldgPct":0.767542},{"id":"u142","addr":"福國路50巷6弄4號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170022","landShare":29.5,"bldgArea":116.676,"isLandOnly":false,"landSharePct":0.453149,"bldgPct":0.767542},{"id":"u143","addr":"福國路50巷6弄4號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170022","landShare":29.5,"bldgArea":116.676,"isLandOnly":false,"landSharePct":0.453149,"bldgPct":0.767542},{"id":"u144","addr":"福國路50巷6弄9號","unit":"2樓","owner":"未登記","phone":"","status":"agree","note":"","landNo":"1170027","landShare":27.5,"bldgArea":109.356,"isLandOnly":false,"landSharePct":0.422427,"bldgPct":0.719388},{"id":"u145","addr":"福國路50巷6弄9號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170027","landShare":27.5,"bldgArea":109.356,"isLandOnly":false,"landSharePct":0.422427,"bldgPct":0.719388},{"id":"u146","addr":"福國路50巷6弄9號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170027","landShare":27.5,"bldgArea":109.356,"isLandOnly":false,"landSharePct":0.422427,"bldgPct":0.719388},{"id":"u147","addr":"福國路50巷6弄7號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170028","landShare":27.5,"bldgArea":109.188,"isLandOnly":false,"landSharePct":0.422427,"bldgPct":0.718283},{"id":"u148","addr":"福國路50巷6弄7號","unit":"2樓","owner":"未登記","phone":"0933-090-512","status":"pending","note":"??0933-090-512","landNo":"1170028","landShare":27.5,"bldgArea":109.188,"isLandOnly":false,"landSharePct":0.422427,"bldgPct":0.718283},{"id":"u149","addr":"福國路50巷6弄7號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170028","landShare":27.5,"bldgArea":109.188,"isLandOnly":false,"landSharePct":0.422427,"bldgPct":0.718283},{"id":"u150","addr":"福國路50巷6弄7號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170028","landShare":27.5,"bldgArea":109.188,"isLandOnly":false,"landSharePct":0.422427,"bldgPct":0.718283},{"id":"u151","addr":"福國路50巷6弄11號","unit":"4樓","owner":"未登記","phone":"0931-319-816","status":"agree","note":"??0931-319-816","landNo":"1170029","landShare":22.5,"bldgArea":89.448,"isLandOnly":false,"landSharePct":0.345622,"bldgPct":0.588425},{"id":"u152","addr":"福國路26號","unit":"1樓","owner":"官慧美","phone":"2831-5758","status":"agree","note":"??2831-5758","landNo":"1170034","landShare":21.5,"bldgArea":94.728,"isLandOnly":false,"landSharePct":0.330261,"bldgPct":0.623159},{"id":"u153","addr":"福國路26號","unit":"2樓","owner":"官慧美","phone":"2831-5758","status":"agree","note":"??2831-5758","landNo":"1170034","landShare":21.5,"bldgArea":94.728,"isLandOnly":false,"landSharePct":0.330261,"bldgPct":0.623159},{"id":"u154","addr":"福國路26號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170034","landShare":21.5,"bldgArea":94.728,"isLandOnly":false,"landSharePct":0.330261,"bldgPct":0.623159},{"id":"u155","addr":"福國路26號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170034","landShare":21.5,"bldgArea":94.728,"isLandOnly":false,"landSharePct":0.330261,"bldgPct":0.623159},{"id":"u156","addr":"福國路28號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170035","landShare":21.715434,"bldgArea":96.12,"isLandOnly":false,"landSharePct":0.33357,"bldgPct":0.632316},{"id":"u157","addr":"福國路28號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170035","landShare":21.853697,"bldgArea":96.732,"isLandOnly":false,"landSharePct":0.335694,"bldgPct":0.636342},{"id":"u158","addr":"福國路28號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170035","landShare":21.715434,"bldgArea":96.12,"isLandOnly":false,"landSharePct":0.33357,"bldgPct":0.632316},{"id":"u159","addr":"福國路28號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170035","landShare":21.715434,"bldgArea":96.12,"isLandOnly":false,"landSharePct":0.33357,"bldgPct":0.632316},{"id":"u160","addr":"福國路30號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170036","landShare":22,"bldgArea":98.208,"isLandOnly":false,"landSharePct":0.337942,"bldgPct":0.646052},{"id":"u161","addr":"福國路30號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170036","landShare":22,"bldgArea":98.208,"isLandOnly":false,"landSharePct":0.337942,"bldgPct":0.646052},{"id":"u162","addr":"福國路30號","unit":"3樓","owner":"張麗美","phone":"0912-826-858","status":"agree","note":"??0912-826-858","landNo":"1170036","landShare":22,"bldgArea":98.208,"isLandOnly":false,"landSharePct":0.337942,"bldgPct":0.646052},{"id":"u163","addr":"福國路30號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170036","landShare":22,"bldgArea":98.208,"isLandOnly":false,"landSharePct":0.337942,"bldgPct":0.646052},{"id":"u164","addr":"福國路32號","unit":"1樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170037","landShare":22.5,"bldgArea":99.6,"isLandOnly":false,"landSharePct":0.345622,"bldgPct":0.655209},{"id":"u165","addr":"福國路32號","unit":"2樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170037","landShare":22.5,"bldgArea":99.6,"isLandOnly":false,"landSharePct":0.345622,"bldgPct":0.655209},{"id":"u166","addr":"福國路32號","unit":"3樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170037","landShare":22.5,"bldgArea":99.6,"isLandOnly":false,"landSharePct":0.345622,"bldgPct":0.655209},{"id":"u167","addr":"福國路32號","unit":"4樓","owner":"未登記","phone":"","status":"pending","note":"","landNo":"1170037","landShare":22.5,"bldgArea":99.6,"isLandOnly":false,"landSharePct":0.345622,"bldgPct":0.655209}];
+
+let filterStatus='all', newStatusVal='pending', editingId=null, editStatusVal=null, toastTimer=null, addFormOpen=false;
+
+function getOwnerStats(){
+  const bldgUnits = units.filter(u => !u.isLandOnly);
+  const total = bldgUnits.length;
+  const agree = bldgUnits.filter(u => u.status === 'agree').length;
+  const disagree = bldgUnits.filter(u => u.status === 'disagree').length;
+  const other = bldgUnits.filter(u => u.status === 'other').length;
+  const pending = bldgUnits.filter(u => u.status === 'pending').length;
+  return { total, agree, disagree, other, pending, pct: total ? Math.round(agree / total * 100) : 0 };
+}
+function getLandOwnerStats(){
+  const LAND_OWNER_TOTAL = 175;
+  const agree = units.filter(u => u.status === 'agree').length;
+  const disagree = units.filter(u => u.status === 'disagree').length;
+  const other = units.filter(u => u.status === 'other').length;
+  const pending = Math.max(0, LAND_OWNER_TOTAL - agree - disagree - other);
+  const total = LAND_OWNER_TOTAL;
+  return { total, agree, disagree, other, pending, pct: Math.round(agree / total * 100) };
+}
+function getLandStats(){
+  const agree   =units.filter(u=>u.status==='agree').reduce((s,u)=>s+(u.landShare||0),0);
+  const disagree=units.filter(u=>u.status==='disagree').reduce((s,u)=>s+(u.landShare||0),0);
+  const other   =units.filter(u=>u.status==='other').reduce((s,u)=>s+(u.landShare||0),0);
+  const pending =units.filter(u=>u.status==='pending').reduce((s,u)=>s+(u.landShare||0),0);
+  return {total:LAND_TOTAL,agree,disagree,other,pending,pct:Math.round(agree/LAND_TOTAL*100)};
+}
+function getBldgStats(){
+  const agree   =units.filter(u=>u.status==='agree').reduce((s,u)=>s+(u.bldgArea||0),0);
+  const disagree=units.filter(u=>u.status==='disagree').reduce((s,u)=>s+(u.bldgArea||0),0);
+  const other   =units.filter(u=>u.status==='other').reduce((s,u)=>s+(u.bldgArea||0),0);
+  const pending =units.filter(u=>u.status==='pending').reduce((s,u)=>s+(u.bldgArea||0),0);
+  return {total:BLDG_TOTAL,agree,disagree,other,pending,pct:Math.round(agree/BLDG_TOTAL*100)};
+}
+function setTC(n,pct,detail,needed){
+  const ok=pct>=80;
+  document.getElementById('tc'+n).className='tc '+(ok?'ok':'ng');
+  const badge=document.getElementById('tc'+n+'-badge');
+  badge.className='tc-badge '+(ok?'ok':'ng');badge.textContent=ok?'✅ 達標':'未達標';
+  const pe=document.getElementById('tc'+n+'-pct');
+  pe.className='tc-pct '+(ok?'ok':'ng');pe.textContent=pct+'%';
+  document.getElementById('tc'+n+'-d').textContent=detail;
+  const bar=document.getElementById('tc'+n+'-bar');
+  bar.className='tc-bar-f '+(ok?'ok':'ng');bar.style.width=Math.min(pct,100)+'%';
+  document.getElementById('tc'+n+'-n').textContent=ok?'':needed;
+}
+function setArc(id,len,off){
+  const circ=2*Math.PI*54,el=document.getElementById(id);
+  el.setAttribute('stroke-dasharray',len+' '+(circ-len));
+  el.setAttribute('stroke-dashoffset',off);
+}
+function drawDonut(prefix,s){
+  const circ=2*Math.PI*54,t=s.total||1;
+  const aL=circ*s.agree/t,dL=circ*s.disagree/t,oL=circ*s.other/t,pL=circ*s.pending/t;
+  const aO=circ*.25,dO=aO-aL,oO=dO-dL,pO=oO-oL;
+  setArc(prefix+'-agree',aL,aO);setArc(prefix+'-disagree',dL,dO);
+  setArc(prefix+'-other',oL,oO);setArc(prefix+'-pending',pL,pO);
+}
+function renderDashboard(){
+  const os=getOwnerStats(),ls=getLandStats(),bs=getBldgStats(),los=getLandOwnerStats();
+  setTC(1,los.pct,los.agree+'/'+los.total+'人','距80%還差 '+Math.max(0,Math.ceil(los.total*.8)-los.agree)+' 人');
+  setTC(2,ls.pct,Math.round(ls.agree).toLocaleString()+'/'+Math.round(ls.total).toLocaleString()+' m²','距80%還差約 '+Math.max(0,Math.round(ls.total*.8-ls.agree)).toLocaleString()+' m²');
+  setTC(3,os.pct,os.agree+'/'+os.total+'人','距80%還差 '+Math.max(0,Math.ceil(os.total*.8)-os.agree)+' 人');
+  setTC(4,bs.pct,Math.round(bs.agree).toLocaleString()+'/'+Math.round(bs.total).toLocaleString()+' m²','距80%還差約 '+Math.max(0,Math.round(bs.total*.8-bs.agree)).toLocaleString()+' m²');
+  const okC=[los.pct,ls.pct,os.pct,bs.pct].filter(p=>p>=80).length;
+  document.getElementById('tc-summary').textContent=okC===4?'🎉 4項門檻全部達標，可申請都更！':okC+'/4 項達標，尚有 '+(4-okC)+' 項未達 80%';
+  drawDonut('p1',os);drawDonut('p2',ls);drawDonut('p3',bs);drawDonut('p4',los);
+  document.getElementById('p1-pct').textContent=os.pct+'%';
+  document.getElementById('p2-pct').textContent=ls.pct+'%';
+  document.getElementById('p3-pct').textContent=bs.pct+'%';
+  document.getElementById('p4-pct').textContent=los.pct+'%';
+  renderMilestones();
+}
+function renderMilestones(){
+  const os=getOwnerStats(),ls=getLandStats(),bs=getBldgStats(),los=getLandOwnerStats();
+  const vals={owner:los.pct,land:ls.pct,bldg:bs.pct,all:Math.min(los.pct,ls.pct,bs.pct)};
+  let html='';
+  MILESTONES.forEach(function(m,i){
+    const pct=m.type==='event'?100:(vals[m.type]||0);
+    const done=pct>=m.target;
+    const isEvent=m.type==='event';
+    html+='<div class="ms-item"><div class="ms-circle '+(done?'done':'todo')+'">'+m.icon+'</div>'+(i<MILESTONES.length-1?'<div class="ms-line" style="background:'+(done?'var(--green)':'var(--slate-200)')+'"></div>':'')+'<div><div class="ms-name '+(done?'done':'todo')+'">'+m.label+(done&&!isEvent?' <span class="ms-badge">✓ 已達</span>':'')+'</div>'+(m.date?'<div class="ms-desc">'+m.date+'</div>':'')+'</div></div>';
+  });
+  document.getElementById('milestones').innerHTML=html;
+}
+function renderCharts(){
+  const os=getOwnerStats(),ls=getLandStats(),bs=getBldgStats(),los=getLandOwnerStats();
+  const data=[{label:'建物所有權人',prefix:'p1',s:os},{label:'土地持分面積',prefix:'p2',s:ls},{label:'建物同意面積',prefix:'p3',s:bs},{label:'土地所有權人',prefix:'p4',s:los}];
+  document.getElementById('charts-row').innerHTML=data.map(function(d){return '<div class="chart-block"><div class="chart-label">'+d.label+'<span>'+d.s.pct+'%</span></div><svg width="120" height="120" viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" fill="none" stroke="#e2e8f0" stroke-width="10"/><circle id="'+d.prefix+'-pending" cx="60" cy="60" r="54" fill="none" stroke="#f59e0b" stroke-width="10" stroke-linecap="round"/><circle id="'+d.prefix+'-other" cx="60" cy="60" r="54" fill="none" stroke="#8b5cf6" stroke-width="10" stroke-linecap="round"/><circle id="'+d.prefix+'-disagree" cx="60" cy="60" r="54" fill="none" stroke="#ef4444" stroke-width="10" stroke-linecap="round"/><circle id="'+d.prefix+'-agree" cx="60" cy="60" r="54" fill="none" stroke="#22c55e" stroke-width="10" stroke-linecap="round"/></svg><div class="leg"><div class="leg-item"><div class="leg-dot" style="background:#22c55e"></div><span class="leg-lbl">同意</span><span class="leg-val">'+d.s.agree+'</span><span class="leg-pct">'+(d.s.total?Math.round(d.s.agree/d.s.total*100):0)+'%</span></div><div class="leg-item"><div class="leg-dot" style="background:#ef4444"></div><span class="leg-lbl">不同意</span><span class="leg-val">'+d.s.disagree+'</span><span class="leg-pct">'+(d.s.total?Math.round(d.s.disagree/d.s.total*100):0)+'%</span></div><div class="leg-item"><div class="leg-dot" style="background:#8b5cf6"></div><span class="leg-lbl">觀望中</span><span class="leg-val">'+d.s.other+'</span><span class="leg-pct">'+(d.s.total?Math.round(d.s.other/d.s.total*100):0)+'%</span></div><div class="leg-item"><div class="leg-dot" style="background:#f59e0b"></div><span class="leg-lbl">聯繫中</span><span class="leg-val">'+d.s.pending+'</span><span class="leg-pct">'+(d.s.total?Math.round(d.s.pending/d.s.total*100):0)+'%</span></div><div class="leg-foot"><span>合計 '+d.s.total+'</span><span id="'+d.prefix+'-pct">'+d.s.pct+'%</span></div></div></div>';}).join('');
+}
+function renderSurvey(){
+  const os=getOwnerStats();
+  document.getElementById('survey-summary').innerHTML=Object.entries(STATUS).map(function(e){return '<div class="s-badge" style="background:'+e[1].bg+';color:'+e[1].color+'">'+e[1].icon+' '+e[1].label+' '+(os[e[0]]||0)+'</div>';}).join('');
+  const addrs=[...new Set(units.map(function(u){return u.addr;}))];
+  document.getElementById('survey-list').innerHTML=addrs.map(function(addr){
+    const addrUnits=units.filter(function(u){return u.addr===addr;});
+    const agree=addrUnits.filter(function(u){return u.status==='agree';}).length;
+    const pct=addrUnits.length?Math.round(agree/addrUnits.length*100):0;
+    const borderColor=addrUnits.some(function(u){return u.status==='disagree';})?'var(--red)':addrUnits.every(function(u){return u.status==='agree';})?'var(--green)':'var(--amber)';
+    return '<div class="survey-card" style="border-left-color:'+borderColor+'"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><strong style="font-size:13px">'+addr+'</strong><span style="font-size:11px;color:var(--slate-500)">'+agree+'/'+addrUnits.length+' 同意 ('+pct+'%)</span></div><div class="status-btns">'+addrUnits.map(function(u){var cfg=STATUS[u.status];return '<button class="status-btn" style="background:'+cfg.bg+';color:'+cfg.color+';border-color:'+cfg.color+'" onclick="cycleStatus(\''+u.id+'\')">'+cfg.icon+' '+u.unit+'</button>';}).join('')+'</div></div>';
+  }).join('');
+}
+function cycleStatus(id){
+  var u=units.find(function(x){return x.id===id;});if(!u)return;
+  var order=['pending','agree','disagree','other'];
+  u.status=order[(order.indexOf(u.status)+1)%4];
+  u.dirty=true;
+  renderAll();markDirty();
+}
+function setFilter(s,btn){filterStatus=s;document.querySelectorAll('#tab-units .filter-btn').forEach(function(b){b.classList.remove('active');});btn.classList.add('active');renderUnits();}
+function renderUnits(){
+  var filtered=filterStatus==='all'?units:units.filter(function(u){return u.status===filterStatus;});
+  var addrs=[...new Set(filtered.map(function(u){return u.addr;}))];
+  document.getElementById('units-list').innerHTML=addrs.map(function(addr){
+    var addrU=filtered.filter(function(u){return u.addr===addr;});
+    return '<div class="floor-group"><div class="floor-header">'+addr+' <span style="float:right;font-weight:400;font-size:11px">'+addrU.length+'戶</span></div>'+addrU.map(function(u){return renderUnitRow(u);}).join('')+'</div>';
+  }).join('');
+}
+function renderUnitRow(u){
+  var cfg=STATUS[u.status];
+  if(editingId===u.id)return '<div class="unit-row" style="flex-wrap:wrap"><div class="edit-form"><div class="edit-grid"><input class="fi" value="'+u.owner+'" onchange="editField(\''+u.id+'\',\'owner\',this.value)" placeholder="姓名"><input class="fi" value="'+(u.phone||'')+'" onchange="editField(\''+u.id+'\',\'phone\',this.value)" placeholder="電話"><div class="status-btns">'+Object.entries(STATUS).map(function(e){return '<button class="status-btn" style="background:'+e[1].bg+';color:'+e[1].color+';border-color:'+e[1].color+(editStatusVal===e[0]?';box-shadow:0 0 0 2px '+e[1].color:'')+'" onclick="editStatusVal=\''+e[0]+'\'">'+e[1].icon+' '+e[1].label+'</button>';}).join('')+'</div><input class="fi" value="'+(u.note||'')+'" onchange="editField(\''+u.id+'\',\'note\',this.value)" placeholder="備註" style="grid-column:1/-1"></div><div class="edit-actions"><button class="save-btn" onclick="saveEdit()">儲存</button><button class="cancel-btn" onclick="cancelEdit()">取消</button></div></div></div>';
+  return '<div class="unit-row"><div class="unit-icon" style="background:'+cfg.bg+';color:'+cfg.color+'">'+cfg.icon+'</div><div style="flex:1"><div class="unit-name">'+u.unit+' <span class="unit-owner">'+u.owner+'</span></div><div class="unit-meta">'+u.addr+(u.note?' · '+u.note:'')+'</div></div><span class="status-badge" style="background:'+cfg.bg+';color:'+cfg.color+'">'+cfg.label+'</span><button class="edit-btn" onclick="startEdit(\''+u.id+'\',\''+u.status+'\')">✏️</button></div>';
+}
+function startEdit(id,status){editingId=id;editStatusVal=status;renderUnits();}
+function cancelEdit(){editingId=null;editStatusVal=null;renderUnits();}
+function editField(id,field,val){var u=units.find(function(x){return x.id===id;});if(u){u[field]=val;u.dirty=true;}}
+function saveEdit(){var u=units.find(function(x){return x.id===editingId;});if(u&&editStatusVal){u.status=editStatusVal;u.dirty=true;}editingId=null;editStatusVal=null;renderAll();markDirty();showToast('已更新 '+u.owner);}
+function toggleAddForm(){addFormOpen=!addFormOpen;renderAddForm();}
+function renderAddForm(){
+  var wrap=document.getElementById('add-form-wrap');
+  wrap.style.display=addFormOpen?'block':'none';
+  if(!addFormOpen)return;
+  wrap.innerHTML='<div class="add-form"><div class="add-grid"><input class="fi" id="new-addr" placeholder="地址 (如 福國路34號)"><input class="fi" id="new-unit" placeholder="樓層 (如 3樓)"><input class="fi" id="new-owner" placeholder="所有權人姓名"><input class="fi" id="new-phone" placeholder="電話"></div><div class="fa"><span style="font-size:11px;color:var(--slate-500)">意願：</span>'+Object.entries(STATUS).map(function(e){return '<button class="status-btn" style="background:'+e[1].bg+';color:'+e[1].color+';border-color:'+e[1].color+(newStatusVal===e[0]?';box-shadow:0 0 0 2px '+e[1].color:'')+'" onclick="newStatusVal=\''+e[0]+'\';renderAddForm()">'+e[1].icon+' '+e[1].label+'</button>';}).join('')+'<button class="confirm-btn" onclick="addUnit()">新增</button><button class="cancel-btn" onclick="toggleAddForm()">取消</button></div></div>';
+}
+function addUnit(){
+  var addr=document.getElementById('new-addr').value.trim();
+  var unit=document.getElementById('new-unit').value.trim();
+  var owner=document.getElementById('new-owner').value.trim()||'未登記';
+  var phone=document.getElementById('new-phone').value.trim();
+  if(!addr||!unit){showToast('請填寫地址和樓層','error');return;}
+  units.push({id:'u'+Date.now(),addr:addr,unit:unit,owner:owner,phone:phone,status:newStatusVal,note:'',landNo:'',landShare:0,bldgArea:0,dirty:true});
+  toggleAddForm();renderAll();markDirty();showToast('已新增住戶 '+owner);
+}
+function renderRankBldg(){
+  var addrMap={};units.filter(function(u){return !u.isLandOnly;}).forEach(function(u){if(!addrMap[u.addr])addrMap[u.addr]={addr:u.addr,total:0,agree:0,bldg:0};addrMap[u.addr].total++;if(u.status==='agree')addrMap[u.addr].agree++;addrMap[u.addr].bldg+=(u.bldgArea||0);});
+  var ranked=Object.values(addrMap).sort(function(a,b){return b.bldg-a.bldg;});
+  document.getElementById('rank-bldg-body').innerHTML=ranked.map(function(r,i){return '<tr><td class="rank-no">'+(i+1)+'</td><td>'+r.addr+'</td><td class="num">'+r.bldg.toFixed(1)+'</td><td class="num">'+(r.bldg/BLDG_TOTAL*100).toFixed(2)+'%<span class="rank-pct-bar" style="width:'+Math.min(r.bldg/BLDG_TOTAL*100*3,80)+'px;background:'+(r.agree/r.total>=0.8?'var(--green)':'var(--amber)')+'"></span></td><td class="num">'+(r.total?Math.round(r.agree/r.total*100):0)+'%</td></tr>';}).join('');
+}
+function renderRankLand(){
+  var addrMap={};units.forEach(function(u){if(!addrMap[u.addr])addrMap[u.addr]={addr:u.addr,total:0,agree:0,land:0};addrMap[u.addr].total++;if(u.status==='agree')addrMap[u.addr].agree++;addrMap[u.addr].land+=(u.landShare||0);});
+  var ranked=Object.values(addrMap).sort(function(a,b){return b.land-a.land;});
+  document.getElementById('rank-land-body').innerHTML=ranked.map(function(r,i){return '<tr><td class="rank-no">'+(i+1)+'</td><td>'+r.addr+'</td><td class="num">'+r.land.toFixed(1)+'</td><td class="num">'+(r.land/LAND_TOTAL*100).toFixed(2)+'%<span class="rank-pct-bar" style="width:'+Math.min(r.land/LAND_TOTAL*100*3,80)+'px;background:'+(r.agree/r.total>=0.8?'var(--green)':'var(--amber)')+'"></span></td><td class="num">'+(r.total?Math.round(r.agree/r.total*100):0)+'%</td></tr>';}).join('');
+}
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+  if(name==='rank-bldg') renderRankBldg();
+  else if(name==='rank-land') renderRankLand();
+  else if(name==='3dmap') { if(window.init3DMap) window.init3DMap(); }
+}
+function renderAll(){renderDashboard();renderSurvey();renderUnits();if(window.map3dReady && window.update3DMap) window.update3DMap();}
+function showToast(msg,type){type=type||'success';var el=document.getElementById('toast');el.textContent=(type==='error'?'⚠️ ':'✓ ')+msg;el.className='toast '+type;el.style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(function(){el.style.display='none';},2800);}
+
+function exportExcel(){
+  var today=new Date().toLocaleDateString('zh-TW');
+  var os=getOwnerStats(),ls=getLandStats(),bs=getBldgStats();
+  var wb=XLSX.utils.book_new();
+  var ws=XLSX.utils.aoa_to_sheet([
+    ['福國路都更整合系統 — 4項門檻統計'],['匯出日期：'+today],[],
+    ['門檻','同意','總計','比例','目標','狀態'],
+    ['①土地所有權人數',os.agree,os.total,os.pct+'%','80%',os.pct>=80?'達標':'未達標'],
+    ['②土地同意面積-持分法(m²)',Math.round(ls.agree*100)/100,Math.round(ls.total*100)/100,ls.pct+'%','80%',ls.pct>=80?'達標':'未達標'],
+    ['③建物所有權人數',os.agree,os.total,os.pct+'%','80%',os.pct>=80?'達標':'未達標'],
+    ['④建物同意面積(m²)',Math.round(bs.agree*100)/100,Math.round(bs.total*100)/100,bs.pct+'%','80%',bs.pct>=80?'達標':'未達標'],
+    [],[],
+    ['地址','樓層','姓名','意願','建物面積(m²)','建物占比(%)','土地持分(m²)','土地占比(%)','備註'],
+    ...units.map(function(u){return [u.addr,u.unit,u.owner,STATUS[u.status].label,u.bldgArea||0,(u.bldgArea/BLDG_TOTAL*100).toFixed(3)+'%',u.landShare||0,(u.landShare/LAND_TOTAL*100).toFixed(3)+'%',u.note||''];})
+  ]);
+  ws['!cols']=[{wch:20},...Array(8).fill({wch:12})];
+  XLSX.utils.book_append_sheet(wb,ws,'都更門檻統計');
+  XLSX.writeFile(wb,'福國路都更門檻統計_'+today.replace(/\//g,'')+'.xlsx');
+  showToast('Excel 匯出成功！');
+}
+function exportPDF(){
+  var today=new Date().toLocaleDateString('zh-TW');
+  var os=getOwnerStats(),ls=getLandStats(),bs=getBldgStats();
+  var html='<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>福國路都更門檻統計</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Noto Sans TC,sans-serif;color:#1e293b;padding:22px;font-size:12px}th{background:#1e3a5f;color:#fff;padding:5px 7px;text-align:left;font-weight:700}td{padding:4px 7px;border-bottom:1px solid #f1f5f9}table{width:100%;border-collapse:collapse;font-size:10px}.foot{text-align:center;color:#94a3b8;font-size:9px;margin-top:18px;padding-top:10px;border-top:1px solid #e2e8f0}@media print{body{padding:10px}}</style></head><body><h1>🏗️ 福國路都更整合 — 門檻統計報告</h1><p>匯出日期：'+today+'</p><table><tr><th>地址</th><th>樓層</th><th>姓名</th><th>意願</th><th>建物m²</th><th>土地持分m²</th></tr>'+units.map(function(u){return '<tr><td>'+u.addr+'</td><td>'+u.unit+'</td><td>'+u.owner+'</td><td>'+STATUS[u.status].label+'</td><td>'+(u.bldgArea||0)+'</td><td>'+(u.landShare||0).toFixed(2)+'</td></tr>';}).join('')+'</table><div class="foot">本報告由福國路都更整合系統自動產生 ｜ '+today+'</div><script>window.onload=function(){window.print();}<\/script></body></html>';
+  var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var win=window.open(url,'_blank');
+  if(!win){showToast('請允許彈出視窗','error');return;}
+  showToast('PDF 預覽已開啟');
+}
+
+// ── Google Sheets 雲端同步 ──
+var DEFAULT_GAS_URL='https://script.google.com/macros/s/AKfycbxXfTJupHjzTqNPl6oi9XV_Q351yGpAxSg80YDmQoeuurL5zCc2d9P9hw6kUXBquyKD/exec';
+var GAS_URL=localStorage.getItem('gas_url')||DEFAULT_GAS_URL;
+function setGasUrl(){var url=document.getElementById('gas-url-input').value.trim();if(!url.startsWith('https://script.google.com')){showToast('網址格式不對，請重新複製','error');return;}GAS_URL=url;localStorage.setItem('gas_url',url);showToast('已儲存 API 網址！');updateSyncStatus('網址已更新，正在嘗試同步...',null);syncFromCloud();}
+function updateSyncStatus(msg,ok){var el=document.getElementById('sync-status');if(!el)return;el.textContent=msg;el.style.color=ok===true?'#22c55e':ok===false?'#ef4444':'#f59e0b';}
+function setSyncBtns(disabled){document.querySelectorAll('.sync-action-btn').forEach(function(b){b.disabled=disabled;b.style.opacity=disabled?'0.5':'1';});}
+function showCardLoaders(text){var activePanel=document.querySelector('.tab-panel.active');var cards=activePanel?activePanel.querySelectorAll('.card'):document.querySelectorAll('.card');cards.forEach(function(card){if(!card.querySelector('.card-loader')){var loader=document.createElement('div');loader.className='card-loader';loader.innerHTML='<div class="spinner-large"></div><div class="loader-text">'+(text||'數據同步中…')+'</div>';card.appendChild(loader);}});}
+function hideCardLoaders(){document.querySelectorAll('.card-loader').forEach(function(el){el.remove();});}
+
+async function syncToCloud(){
+  if(!GAS_URL){showToast('請先設定 API 網址','error');return;}
+  showCardLoaders('上傳同步中…');updateSyncStatus('正在安全合併並同步到雲端...',null);setSyncBtns(true);
+  try{var cloudMap={};try{var getRes=await fetch(GAS_URL+'?t='+Date.now());var getData=await getRes.json();if(getData.ok&&getData.patch){getData.patch.forEach(function(p){cloudMap[p.id]=p;});}}catch(e){console.warn("無法取得雲端資料進行合併，將直接覆蓋");}
+  var patch=units.map(function(u){var finalData={id:u.id,status:u.status,owner:u.owner,note:u.note};if(!u.dirty&&u.status==='pending'&&cloudMap[u.id]){finalData.status=cloudMap[u.id].status;finalData.owner=cloudMap[u.id].owner||u.owner;finalData.note=cloudMap[u.id].note||u.note;}return finalData;});
+  var res=await fetch(GAS_URL,{method:'POST',body:JSON.stringify({patch:patch}),headers:{'Content-Type':'text/plain'}});
+  var data=await res.json();if(data.ok){patch.forEach(function(p){var u=units.find(function(item){return item.id===p.id;});if(u){u.status=p.status;u.owner=p.owner;u.note=p.note;delete u.dirty;}});renderAll();updateSyncStatus('同步成功：'+data.savedAt,true);showToast('已成功同步至 Google Sheets！');}else{throw new Error(data.error||'未知錯誤');}
+  }catch(e){updateSyncStatus('同步失敗：'+e.message,false);showToast('同步失敗','error');}finally{hideCardLoaders();setSyncBtns(false);}
+}
+async function syncFromCloud(){
+  if(!GAS_URL)return;showCardLoaders('雲端同步中…');updateSyncStatus('自動同步中...',null);setSyncBtns(true);
+  try{await new Promise(function(resolve){setTimeout(resolve,50);});var res=await fetch(GAS_URL+'?t='+Date.now());var data=await res.json();
+  if(data.ok&&data.patch){var map={};data.patch.forEach(function(p){map[p.id]=p;});var count=0;units.forEach(function(u){if(map[u.id]){u.status=map[u.id].status||u.status;u.owner=map[u.id].owner||u.owner;u.note=map[u.id].note!==undefined?map[u.id].note:u.note;count++;}});renderAll();updateSyncStatus('雲端資料已就緒 ('+(data.savedAt||'剛才')+')',true);console.log('從雲端同步了 '+count+' 筆資料');}}
+  catch(e){updateSyncStatus('自動同步失敗',false);console.error("雲端同步失敗:",e);}finally{hideCardLoaders();if(typeof setSyncBtns==='function')setSyncBtns(false);}
+}
+function markDirty(){if(GAS_URL)updateSyncStatus('資料已修改，記得點擊「同步到雲端」',null);}
+
+// ── 初始化 ──
+(function(){document.addEventListener('DOMContentLoaded',function(){var el=document.getElementById('gas-url-input');if(el)el.value=GAS_URL;renderAll();if(GAS_URL)syncFromCloud();});})();
+renderAll();
+
+// ── 3D Map Helper functions for Three.js module ──
+function parseFloor(unit){if(unit.includes('B1'))return -1;var m=unit.match(/(d+)樓/);return m?parseInt(m[1]):1;}
+function getBuildingPos(addr){
+  var L={
+    '福國路6號':{c:0,r:1},
+    '福國路24號':{c:2,r:0},'福國路26號':{c:3,r:0},
+    '福國路28號':{c:4,r:0},'福國路30號':{c:5,r:0},
+    '福國路32號':{c:6,r:0},
+    '福國路34號':{c:2,r:2},'福國路36號':{c:3,r:2},
+    '福國路38號':{c:4,r:2},'福國路40號':{c:5,r:2},
+    '福國路42號':{c:6,r:2},'福國路44號':{c:7,r:2},
+    '福國路46號':{c:8,r:2},'福國路48號':{c:9,r:2},
+    '福國路50巷2弄1號':{c:11,r:1},'福國路50巷2弄3號':{c:12,r:1},
+    '福國路50巷2弄5號':{c:13,r:1},'福國路50巷2弄7號':{c:14,r:1},
+    '福國路50巷2弄9號':{c:11,r:3},'福國路50巷2弄11號':{c:12,r:3},
+    '福國路50巷2弄13號':{c:13,r:3},'福國路50巷2弄15號':{c:14,r:3},
+    '福國路50巷2弄':{c:11,r:2},
+    '福國路50巷6弄1號':{c:16,r:1},'福國路50巷6弄2號':{c:17,r:1},
+    '福國路50巷6弄3號':{c:18,r:1},'福國路50巷6弄4號':{c:19,r:1},
+    '福國路50巷6弄5號':{c:16,r:3},'福國路50巷6弄6號':{c:17,r:3},
+    '福國路50巷6弄7號':{c:18,r:3},'福國路50巷6弄8號':{c:19,r:3},
+    '福國路50巷6弄9號':{c:20,r:1},'福國路50巷6弄10號':{c:21,r:1},
+    '福國路50巷6弄11號':{c:20,r:3},'福國路50巷6弄12號':{c:21,r:3},
+    '福國路50巷6弄13號':{c:22,r:1},'福國路50巷6弄14號':{c:22,r:3},
+    '福國路50巷6弄15號':{c:23,r:2},
+    '福國路50巷6弄':{c:16,r:2},
+    '福國路50巷':{c:10,r:2},
+    '中山北路六段35巷42號':{c:0,r:5},
+    '中山北路六段35巷44號':{c:1,r:5},
+    '中山北路六段35巷46號':{c:2,r:5},
+  };
+  return L[addr]||{c:0,r:0};
+}
+</script>
+
+<!-- Three.js 3D Map Module -->
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+var scene, camera, renderer, labelRenderer, controls, raycaster, mouse;
+var buildingGroups = {};
+var floorMeshes = [];
+var currentFilter = 'all';
+var map3dReady = false;
+var hoveredFloor = null;
+
+var FLOOR_WIDTH = 3;
+var FLOOR_DEPTH = 3;
+var FLOOR_HEIGHT = 1;
+var SPACING = 5;
+
+function getBuildingData(){
+  var addrMap = {};
+  units.forEach(function(u){
+    if(!addrMap[u.addr]) addrMap[u.addr] = [];
+    addrMap[u.addr].push(u);
+  });
+  var result = [];
+  Object.keys(addrMap).forEach(function(addr){
+    var bldgUnits = addrMap[addr].filter(function(u){return !u.isLandOnly;});
+    var landUnits = addrMap[addr].filter(function(u){return u.isLandOnly;});
+    if(bldgUnits.length > 0){
+      var sorted = bldgUnits.slice().sort(function(a,b){return parseFloor(a.unit)-parseFloor(b.unit);});
+      sorted.forEach(function(u){
+        var fn = parseFloor(u.unit);
+        var pos = getBuildingPos(addr);
+        result.push({addr:addr,floorNum:fn,status:u.status,unitId:u.id,floor:u.unit,owner:u.owner,bldgArea:u.bldgArea,landShare:u.landShare,note:u.note,gridC:pos.c,gridR:pos.r,isLandOnly:false});
+      });
+    }
+    if(landUnits.length > 0 && bldgUnits.length === 0){
+      landUnits.forEach(function(u){
+        var pos = getBuildingPos(addr);
+        result.push({addr:addr,floorNum:0,status:u.status,unitId:u.id,floor:'純土地',owner:u.owner,bldgArea:0,landShare:u.landShare,note:u.note,gridC:pos.c,gridR:pos.r,isLandOnly:true});
+      });
+    }
+  });
+  return result;
+}
+
+function getStatusColor(status){
+  var m = {agree:'#22c55e',disagree:'#ef4444',other:'#8b5cf6',pending:'#f59e0b'};
+  return m[status] || '#888888';
+}
+
+function init3DMap(){
+  if(map3dReady) return;
+  var container = document.getElementById('three-container');
+  if(!container){console.warn('[Three.js] Container not found, retrying...');setTimeout(init3DMap,100);return;}
+  var rect = container.getBoundingClientRect();
+  if(rect.width === 0 || rect.height === 0){console.warn('[Three.js] Container zero size, retrying...');setTimeout(init3DMap,100);return;}
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xe0f2fe);
+
+  camera = new THREE.PerspectiveCamera(45, rect.width / rect.height, 0.1, 1000);
+  camera.position.set(60, 50, 60);
+  camera.lookAt(50, 0, 30);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(rect.width, rect.height);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.shadowMap.enabled = true;
+  container.appendChild(renderer.domElement);
+
+  labelRenderer = new CSS2DRenderer();
+  labelRenderer.setSize(rect.width, rect.height);
+  labelRenderer.domElement.style.position = 'absolute';
+  labelRenderer.domElement.style.top = '0';
+  labelRenderer.domElement.style.pointerEvents = 'none';
+  container.appendChild(labelRenderer.domElement);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.maxPolarAngle = Math.PI / 2 - 0.1;
+  controls.minDistance = 20;
+  controls.maxDistance = 150;
+
+  var ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+  scene.add(ambientLight);
+  var dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(50, 80, 30);
+  dirLight.castShadow = true;
+  scene.add(dirLight);
+
+  var groundGeo = new THREE.PlaneGeometry(200, 200);
+  var groundMat = new THREE.MeshBasicMaterial({ color: 0xf0f9ff, transparent: true, opacity: 0.5 });
+  var ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(50, -0.01, 30);
+  scene.add(ground);
+
+  var gridHelper = new THREE.GridHelper(200, 50, 0xbae6fd, 0xbae6fd);
+  gridHelper.position.set(50, 0, 30);
+  gridHelper.material.opacity = 0.3;
+  gridHelper.material.transparent = true;
+  scene.add(gridHelper);
+
+  raycaster = new THREE.Raycaster();
+  mouse = new THREE.Vector2();
+
+  renderer.domElement.addEventListener('mousemove', onMouseMove);
+  renderer.domElement.addEventListener('click', onClick);
+  window.addEventListener('resize', onWindowResize);
+
+  buildScene();
+  render3DLegend();
+
+  map3dReady = true;
+  window.map3dReady = true;
+  console.log('[Three.js] 3D Map initialized!');
+  animate();
+}
+
+function buildScene(){
+  var data = getBuildingData();
+  data.forEach(function(item){
+    var pos = getBuildingPos(item.addr);
+    var x = pos.c * SPACING;
+    var z = pos.r * SPACING;
+    if(!buildingGroups[item.addr]){
+      buildingGroups[item.addr] = new THREE.Group();
+      buildingGroups[item.addr].position.set(x, 0, z);
+      scene.add(buildingGroups[item.addr]);
+    }
+    var group = buildingGroups[item.addr];
+    if(item.isLandOnly){
+      var geo = new THREE.CylinderGeometry(0.8, 0.8, 0.2, 16);
+      var mat = new THREE.MeshLambertMaterial({ color: getStatusColor(item.status) });
+      var mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(0, 0.1, 0);
+      mesh.userData = item;
+      group.add(mesh);
+      floorMeshes.push(mesh);
+    } else {
+      var y = (item.floorNum - 1) * FLOOR_HEIGHT + FLOOR_HEIGHT / 2;
+      var geo = new THREE.BoxGeometry(FLOOR_WIDTH - 0.1, FLOOR_HEIGHT, FLOOR_DEPTH - 0.1);
+      var mat = new THREE.MeshLambertMaterial({ color: getStatusColor(item.status) });
+      var mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(0, y, 0);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData = item;
+      group.add(mesh);
+      floorMeshes.push(mesh);
+    }
+    var maxFloorData = data.filter(function(d){return d.addr === item.addr && !d.isLandOnly;});
+    if(maxFloorData.length > 0){
+      var maxFloor = Math.max.apply(null, maxFloorData.map(function(d){return d.floorNum;}));
+      if(item.floorNum === maxFloor){
+        var shortAddr = item.addr.replace('福國路','').replace('中山北路六段35巷','中35巷');
+        var div = document.createElement('div');
+        div.className = 'label';
+        div.textContent = shortAddr;
+        div.style.cssText = 'font-size:10px;font-weight:700;color:#1e3a5f;text-align:center;';
+        var label = new CSS2DObject(div);
+        label.position.set(0, maxFloor * FLOOR_HEIGHT + 1, 0);
+        group.add(label);
+      }
+    }
+  });
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+}
+
+function onMouseMove(event){
+  var rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  var intersects = raycaster.intersectObjects(floorMeshes);
+  var tooltip = document.getElementById('3dmap-tooltip');
+  if(intersects.length > 0){
+    var hit = intersects[0].object.userData;
+    if(hoveredFloor && hoveredFloor !== intersects[0].object){
+      hoveredFloor.material.emissive.setHex(0x000000);
+    }
+    hoveredFloor = intersects[0].object;
+    hoveredFloor.material.emissive.setHex(0x333333);
+    var cfg = STATUS[hit.status];
+    tooltip.style.display = 'block';
+    tooltip.style.left = Math.min(event.clientX - rect.left + 15, rect.width - 290) + 'px';
+    tooltip.style.top = Math.min(event.clientY - rect.top + 15, rect.height - 180) + 'px';
+    tooltip.innerHTML = '<div class="addr">' + hit.addr + ' ' + hit.floor + '</div>' +
+      '<div class="row"><span class="label">所有權人</span><span class="val">' + hit.owner + '</span></div>' +
+      '<div class="row"><span class="label">狀態</span><span class="status-badge" style="background:' + cfg.bg + ';color:' + cfg.color + '">' + cfg.label + '</span></div>' +
+      '<div class="row"><span class="label">建物面積</span><span class="val">' + (hit.bldgArea || 0) + ' m²</span></div>' +
+      '<div class="row"><span class="label">土地持分</span><span class="val">' + (hit.landShare || 0).toFixed(2) + ' m²</span></div>' +
+      (hit.note ? '<div class="row" style="margin-top:6px;font-size:10px;color:#64748b">備註：' + hit.note + '</div>' : '');
+    renderer.domElement.style.cursor = 'pointer';
+  } else {
+    if(hoveredFloor){hoveredFloor.material.emissive.setHex(0x000000);hoveredFloor=null;}
+    tooltip.style.display = 'none';
+    renderer.domElement.style.cursor = 'grab';
+  }
+}
+
+function onClick(event){
+  if(hoveredFloor){
+    var hit = hoveredFloor.userData;
+    showToast(hit.addr + ' ' + hit.floor + ' - ' + hit.owner);
+  }
+}
+
+function onWindowResize(){
+  var container = document.getElementById('three-container');
+  if(!container)return;
+  var rect = container.getBoundingClientRect();
+  camera.aspect = rect.width / rect.height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(rect.width, rect.height);
+  labelRenderer.setSize(rect.width, rect.height);
+}
+
+function update3DMap(){
+  if(!map3dReady) return;
+  floorMeshes.forEach(function(mesh){mesh.geometry.dispose();mesh.material.dispose();});
+  floorMeshes = [];
+  Object.keys(buildingGroups).forEach(function(addr){scene.remove(buildingGroups[addr]);});
+  buildingGroups = {};
+  buildScene();
+  applyFilter();
+  var el = document.getElementById('3d-filter-status');
+  if(el){var labels = {all:'全部',agree:'同意',disagree:'不同意',other:'觀望中',pending:'聯繫中'};el.textContent = labels[currentFilter] || '全部';}
+}
+
+function applyFilter(){
+  floorMeshes.forEach(function(mesh){
+    var status = mesh.userData.status;
+    var isMatch = currentFilter === 'all' || status === currentFilter;
+    mesh.material.opacity = isMatch ? 1.0 : 0.15;
+    mesh.material.transparent = true;
+  });
+}
+
+function set3DFilter(filter, btn){
+  currentFilter = filter;
+  document.querySelectorAll('#tab-3dmap .filter-btn').forEach(function(b){b.classList.remove('active');});
+  if(btn) btn.classList.add('active');
+  applyFilter();
+  var el = document.getElementById('3d-filter-status');
+  if(el){var labels = {all:'全部',agree:'同意',disagree:'不同意',other:'觀望中',pending:'聯繫中'};el.textContent = labels[currentFilter] || '全部';}
+}
+
+function render3DLegend(){
+  var legend = document.getElementById('3dmap-legend');
+  if(!legend) return;
+  var html = '<div style="font-weight:800;margin-bottom:8px;color:#1e3a5f">圖例說明</div>';
+  Object.entries(STATUS).forEach(function(entry){
+    html += '<div class="leg-row"><div class="leg-color" style="background:'+entry[1].color+'"></div><span class="leg-text">'+entry[1].label+'</span></div>';
+  });
+  html += '<div class="filter-status">目前篩選：<strong id="3d-filter-status">全部</strong></div>';
+  legend.innerHTML = html;
+}
+
+// Expose to global scope for main script
+window.init3DMap = init3DMap;
+window.update3DMap = update3DMap;
+window.set3DFilter = set3DFilter;
+window.map3dReady = false;
+</script>
+</body>
+</html>
