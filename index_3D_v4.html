@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>福國路都更整合系統 v4.1</title>
+<title>福國路都更整合系統</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="importmap">
@@ -157,7 +157,6 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f0f4f8;color:var(--slate-
 
 /* 卡片容器設為相對定位，以便遮罩定位 */
 .card { position: relative; overflow: hidden; }
-#tab-3dmap .card { overflow: visible; }
 
 /* 遮罩層樣式 */
 .card-loader {
@@ -198,18 +197,33 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f0f4f8;color:var(--slate-
 
 @keyframes spin { to { transform: rotate(360deg); }}
 
-/* 3D Map */
-#three-container{display:block;outline:none;cursor:grab}
-#3dmap-tooltip{font-family:'Noto Sans TC',sans-serif;line-height:1.5}
+/* 3D Fullscreen Overlay */
+#three-overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:200;display:none;background:#e0f2fe}
+#three-overlay.open{display:block}
+#three-overlay canvas{display:block;outline:none;cursor:grab}
+#3d-overlay-header{position:absolute;top:0;left:0;right:0;height:52px;background:linear-gradient(135deg,var(--blue-dark),var(--blue));color:#fff;display:flex;align-items:center;padding:0 18px;gap:12px;z-index:210;box-shadow:0 4px 20px rgba(30,58,95,.25)}
+#3d-overlay-header .title{font-weight:900;font-size:15px;flex:1}
+#3d-overlay-close{background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:6px 14px;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit;transition:background .2s}
+#3d-overlay-close:hover{background:rgba(255,255,255,.35)}
+#3d-overlay-filters{position:absolute;top:56px;left:16px;display:flex;gap:6px;flex-wrap:wrap;z-index:210}
+#3d-overlay-filters .filter-btn{padding:5px 13px;border:none;border-radius:99px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+#3d-overlay-filters .filter-btn.active{background:var(--blue-dark);color:#fff}
+#3d-overlay-filters .filter-btn:not(.active){background:#fff;color:var(--slate-600)}
+#3dmap-tooltip{font-family:'Noto Sans TC',sans-serif;line-height:1.5;position:absolute;pointer-events:none;background:#fff;border-radius:12px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);font-size:11px;z-index:220;display:none;max-width:280px;border:1px solid var(--slate-200)}
 #3dmap-tooltip .addr{font-weight:800;font-size:12px;margin-bottom:4px;color:var(--blue-dark)}
 #3dmap-tooltip .row{display:flex;justify-content:space-between;gap:12px;margin-bottom:2px}
 #3dmap-tooltip .label{color:var(--slate-500)}
 #3dmap-tooltip .val{font-weight:700;color:var(--slate-900)}
 #3dmap-tooltip .status-badge{display:inline-block;padding:1px 6px;border-radius:99px;font-size:9px;font-weight:800;margin-top:6px}
+#3dmap-legend{position:absolute;bottom:16px;left:16px;background:#fff;border-radius:12px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);font-size:10px;z-index:210;border:1px solid var(--slate-200)}
 #3dmap-legend .leg-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
 #3dmap-legend .leg-color{width:14px;height:14px;border-radius:3px}
 #3dmap-legend .leg-text{color:var(--slate-600);font-weight:600}
 #3dmap-legend .filter-status{border-top:1px solid var(--slate-100);margin-top:8px;padding-top:8px;font-size:9px;color:var(--slate-400)}
+/* Tab placeholder - just a launch card */
+#tab-3dmap .launch-card{background:#fff;border-radius:var(--rl);padding:28px;box-shadow:var(--shadow);text-align:center}
+#tab-3dmap .launch-btn{display:inline-block;background:linear-gradient(135deg,var(--blue-dark),var(--blue));color:#fff;border:none;border-radius:12px;padding:14px 32px;font-weight:900;font-size:15px;cursor:pointer;font-family:inherit;transition:transform .2s,box-shadow .2s;box-shadow:0 4px 16px rgba(37,99,235,.3)}
+#tab-3dmap .launch-btn:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(37,99,235,.4)}
 </style>
 </head>
 <body>
@@ -329,28 +343,8 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f0f4f8;color:var(--slate-
             <div class="leg-item"><div class="leg-dot" style="background:#8b5cf6"></div><span class="leg-lbl">觀望中</span><span class="leg-val" id="l2-other" style="color:#8b5cf6">—</span><span class="leg-pct" id="l2-other-p"></span></div>
             <div class="leg-item"><div class="leg-dot" style="background:#f59e0b"></div><span class="leg-lbl">聯繫中</span><span class="leg-val" id="l2-pending" style="color:#f59e0b">—</span><span class="leg-pct" id="l2-pending-p"></span></div>
             <div class="leg-foot"><span>總計</span><strong>6,510 m²</strong></div>
-  </div>
-
-  <!-- 3D 建物地圖 -->
-  <div id="tab-3dmap" class="tab-panel">
-    <div class="card" style="padding:0;overflow:visible">
-      <div class="card-title" style="padding:18px 18px 0">🏗️ 3D 建物地圖 <span style="font-size:10px;font-weight:400;color:#94a3b8">v3.0 Three.js</span></div>
-      <div class="card-sub" style="padding:0 18px 8px">每棟建築依樓層繪製，顏色代表同意狀態 ｜ 拖曳旋轉 · 滾輪縮放 · 懸停查看</div>
-      <div class="filter-bar" style="margin:0 18px 12px;border-radius:99px">
-        <button class="filter-btn active" onclick="set3DFilter('all',this)">全部</button>
-        <button class="filter-btn" onclick="set3DFilter('agree',this)">同意</button>
-        <button class="filter-btn" onclick="set3DFilter('disagree',this)">不同意</button>
-        <button class="filter-btn" onclick="set3DFilter('other',this)">觀望中</button>
-        <button class="filter-btn" onclick="set3DFilter('pending',this)">聯繫中</button>
-      </div>
-      <div id="3dmap-wrap" style="min-width:100%;height:600px;position:relative;border-radius:var(--rl);overflow:hidden;background:linear-gradient(180deg,#f0f9ff 0%,#e0f2fe 100%)">
-        <div id="three-container" style="width:100%;height:100%"></div>
-        <div id="3dmap-tooltip" style="position:absolute;pointer-events:none;background:#fff;border-radius:12px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);font-size:11px;z-index:1000;display:none;max-width:280px;border:1px solid var(--slate-200)"></div>
-        <div id="3dmap-legend" style="position:absolute;bottom:16px;left:16px;background:#fff;border-radius:12px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);font-size:10px;z-index:1000;border:1px solid var(--slate-200)"></div>
-      </div>
-    </div>
-  </div>
-</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -366,6 +360,16 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f0f4f8;color:var(--slate-
       <span id="sync-status"></span>
     </div>
 
+  </div>
+
+  <!-- 3D 建物地圖 - Launch Card -->
+  <div id="tab-3dmap" class="tab-panel">
+    <div class="launch-card">
+      <div style="font-size:40px;margin-bottom:12px">🏗️</div>
+      <div style="font-weight:900;font-size:18px;color:var(--blue-dark);margin-bottom:6px">3D 建物地圖</div>
+      <div style="font-size:12px;color:var(--slate-500);margin-bottom:20px">每棟建築依樓層繪製，顏色代表同意狀態<br>拖曳旋轉 · 滾輪縮放 · 懸停查看</div>
+      <button class="launch-btn" onclick="open3DOverlay()">🗺️ 開啟 3D 地圖</button>
+    </div>
   </div>
 
   <!-- Survey（不顯示建物面積）-->
@@ -476,8 +480,6 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f0f4f8;color:var(--slate-
 <div id="toast" class="toast success" style="display:none"></div>
 
 <script>
-var map3dReady = false;
-
 const LAND_TOTAL = 6510.0;
 const BLDG_TOTAL = 15201.252;
 
@@ -884,14 +886,12 @@ function addUnit(){
 function switchTab(name,btn){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  var panel=document.getElementById('tab-'+name);
-  panel.classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
   btn.classList.add('active');
   if(name==='rank-bldg') renderRankBldg();
   else if(name==='rank-land') renderRankLand();
-  else if(name==='3dmap'){ void panel.offsetHeight; setTimeout(function(){if(window.init3DMap)window.init3DMap();},50); }
 }
-function renderAll(){renderDashboard();renderSurvey();renderUnits();if(window.map3dReady && window.update3DMap) window.update3DMap();}
+function renderAll(){renderDashboard();renderSurvey();renderUnits();if(window.map3dReady&&window.update3DMap)window.update3DMap();}
 function showToast(msg,type='success'){const el=document.getElementById('toast');el.textContent=(type==='error'?'⚠️ ':'✓ ')+msg;el.className='toast '+type;el.style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.style.display='none',2800);}
 
 function exportExcel(){
@@ -1125,8 +1125,9 @@ function markDirty() {
 renderAll();
 </script>
 
-<!-- 3D Map Helper functions for Three.js module -->
+<!-- 3D Map helpers (global scope for module access) -->
 <script>
+var map3dReady = false;
 function parseFloor(unit){if(unit.includes('B1'))return -1;var m=unit.match(/(\d+)樓/);return m?parseInt(m[1]):1;}
 function getBuildingPos(addr){
   var L={
@@ -1172,313 +1173,238 @@ var floorMeshes = [];
 var currentFilter = 'all';
 var map3dReady = false;
 var hoveredFloor = null;
-
-var FLOOR_WIDTH = 3;
-var FLOOR_DEPTH = 3;
-var FLOOR_HEIGHT = 1;
-var SPACING = 5;
+var FLOOR_WIDTH = 3, FLOOR_DEPTH = 3, FLOOR_HEIGHT = 1, SPACING = 5;
 
 function getBuildingData(){
   var u = window.units || [];
-  console.log('[3D Debug] window.units length:', u.length);
-  if(u.length === 0){ console.error('[3D Debug] window.units is empty or undefined! typeof:', typeof window.units); }
   var addrMap = {};
-  u.forEach(function(unit){
-    if(!addrMap[unit.addr]) addrMap[unit.addr] = [];
-    addrMap[unit.addr].push(unit);
-  });
+  u.forEach(function(unit){ if(!addrMap[unit.addr]) addrMap[unit.addr] = []; addrMap[unit.addr].push(unit); });
   var result = [];
   Object.keys(addrMap).forEach(function(addr){
-    var bldgUnits = addrMap[addr].filter(function(unit){return !unit.isLandOnly;});
-    var landUnits = addrMap[addr].filter(function(unit){return unit.isLandOnly;});
-    if(bldgUnits.length > 0){
-      var sorted = bldgUnits.slice().sort(function(a,b){return parseFloor(a.unit)-parseFloor(b.unit);});
-      sorted.forEach(function(unit){
-        var fn = parseFloor(unit.unit);
-        var pos = getBuildingPos(addr);
-        result.push({addr:addr,floorNum:fn,status:unit.status,unitId:unit.id,floor:unit.unit,owner:unit.owner,bldgArea:unit.bldgArea,landShare:unit.landShare,note:unit.note,gridC:pos.c,gridR:pos.r,isLandOnly:false});
+    var bldg = addrMap[addr].filter(function(x){return !x.isLandOnly;});
+    var land = addrMap[addr].filter(function(x){return x.isLandOnly;});
+    if(bldg.length > 0){
+      bldg.sort(function(a,b){return parseFloor(a.unit)-parseFloor(b.unit);}).forEach(function(x){
+        var fn = parseFloor(x.unit), pos = getBuildingPos(addr);
+        result.push({addr:addr,floorNum:fn,status:x.status,unitId:x.id,floor:x.unit,owner:x.owner,bldgArea:x.bldgArea,landShare:x.landShare,note:x.note,gridC:pos.c,gridR:pos.r,isLandOnly:false});
       });
     }
-    if(landUnits.length > 0 && bldgUnits.length === 0){
-      landUnits.forEach(function(unit){
+    if(land.length > 0 && bldg.length === 0){
+      land.forEach(function(x){
         var pos = getBuildingPos(addr);
-        result.push({addr:addr,floorNum:0,status:unit.status,unitId:unit.id,floor:'純土地',owner:unit.owner,bldgArea:0,landShare:unit.landShare,note:unit.note,gridC:pos.c,gridR:pos.r,isLandOnly:true});
+        result.push({addr:addr,floorNum:0,status:x.status,unitId:x.id,floor:'純土地',owner:x.owner,bldgArea:0,landShare:x.landShare,note:x.note,gridC:pos.c,gridR:pos.r,isLandOnly:true});
       });
     }
   });
   return result;
 }
 
-function getStatusColor(status){
-  var m = {agree:'#22c55e',disagree:'#ef4444',other:'#8b5cf6',pending:'#f59e0b'};
-  return m[status] || '#888888';
-}
+function getStatusColor(s){return{agree:'#22c55e',disagree:'#ef4444',other:'#8b5cf6',pending:'#f59e0b'}[s]||'#888';}
 
 function makeTextSprite(text){
   var canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 64;
+  canvas.width = 256; canvas.height = 64;
   var ctx = canvas.getContext('2d');
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.fillRect(0,0,256,64);
   ctx.font = 'bold 22px Noto Sans TC, sans-serif';
   ctx.fillStyle = '#1e3a5f';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, 128, 32);
-  var texture = new THREE.CanvasTexture(canvas);
-  texture.minFilter = THREE.LinearFilter;
-  var spriteMat = new THREE.SpriteMaterial({map: texture, transparent: true, depthTest: false});
-  var sprite = new THREE.Sprite(spriteMat);
-  sprite.scale.set(4, 1, 1);
-  return sprite;
+  var tex = new THREE.CanvasTexture(canvas);
+  tex.minFilter = THREE.LinearFilter;
+  var mat = new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false});
+  var sp = new THREE.Sprite(mat);
+  sp.scale.set(4,1,1);
+  return sp;
 }
 
 function init3DMap(){
   if(map3dReady) return;
   var container = document.getElementById('three-container');
-  if(!container){console.error('[Three.js] Container not found!');return;}
-
-  // Always start with a fixed size, resize later
-  var w = 800, h = 600;
+  if(!container) return;
+  // Fullscreen: use window dimensions directly
+  var w = window.innerWidth;
+  var h = window.innerHeight - 52; // subtract header height
+  console.log('[3D] Init size:', w, 'x', h);
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xe0f2fe);
+  camera = new THREE.PerspectiveCamera(45, w/h, 0.1, 1000);
+  camera.position.set(60,50,60);
+  camera.lookAt(50,0,30);
 
-  camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
-  camera.position.set(60, 50, 60);
-  camera.lookAt(50, 0, 30);
-
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(w, h);
+  renderer = new THREE.WebGLRenderer({antialias:true,alpha:true});
+  renderer.setSize(w,h);
   renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.domElement.style.position='absolute';
+  renderer.domElement.style.top='52px';
+  renderer.domElement.style.left='0';
   renderer.shadowMap.enabled = true;
   container.appendChild(renderer.domElement);
 
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
-  controls.maxPolarAngle = Math.PI / 2 - 0.1;
+  controls.maxPolarAngle = Math.PI/2-0.1;
   controls.minDistance = 20;
   controls.maxDistance = 150;
 
-  var ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-  scene.add(ambientLight);
-  var dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  dirLight.position.set(50, 80, 30);
-  dirLight.castShadow = true;
-  scene.add(dirLight);
+  scene.add(new THREE.AmbientLight(0xffffff,0.6));
+  var dl = new THREE.DirectionalLight(0xffffff,0.8);
+  dl.position.set(50,80,30); dl.castShadow = true; scene.add(dl);
 
-  var groundGeo = new THREE.PlaneGeometry(200, 200);
-  var groundMat = new THREE.MeshBasicMaterial({ color: 0xf0f9ff, transparent: true, opacity: 0.5 });
-  var ground = new THREE.Mesh(groundGeo, groundMat);
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.set(50, -0.01, 30);
-  scene.add(ground);
-
-  var gridHelper = new THREE.GridHelper(200, 50, 0xbae6fd, 0xbae6fd);
-  gridHelper.position.set(50, 0, 30);
-  gridHelper.material.opacity = 0.3;
-  gridHelper.material.transparent = true;
-  scene.add(gridHelper);
+  var gnd = new THREE.Mesh(new THREE.PlaneGeometry(200,200), new THREE.MeshBasicMaterial({color:0xf0f9ff,transparent:true,opacity:0.5}));
+  gnd.rotation.x = -Math.PI/2; gnd.position.set(50,-0.01,30); scene.add(gnd);
+  var grid = new THREE.GridHelper(200,50,0xbae6fd,0xbae6fd);
+  grid.position.set(50,0,30); grid.material.opacity=0.3; grid.material.transparent=true; scene.add(grid);
 
   raycaster = new THREE.Raycaster();
   mouse = new THREE.Vector2();
-
   renderer.domElement.addEventListener('mousemove', onMouseMove);
   renderer.domElement.addEventListener('click', onClick);
-  window.addEventListener('resize', onWindowResize);
+  window.addEventListener('resize', onResize);
 
   buildScene();
-  console.log('[3D Debug] floorMeshes:', floorMeshes.length, 'buildings:', Object.keys(buildingGroups).length);
   render3DLegend();
-
   map3dReady = true;
   window.map3dReady = true;
-  console.log('[Three.js] 3D Map initialized!');
-
-  // Diagnostic: make canvas visually obvious
-  renderer.domElement.style.border = '3px solid red';
-  console.log('[3D Debug] Canvas parent:', container.parentElement ? container.parentElement.id : 'none');
-  console.log('[3D Debug] Canvas style:', renderer.domElement.style.cssText.substring(0,200));
-  console.log('[3D Debug] Container rect:', container.getBoundingClientRect().width, 'x', container.getBoundingClientRect().height);
-
+  console.log('[3D] Initialized! meshes:', floorMeshes.length);
   animate();
-
-  // Resize to real container size after browser has laid out
-  setTimeout(function(){ onWindowResize(); }, 200);
-  setTimeout(function(){ onWindowResize(); }, 500);
-
-  // Pixel readback test at 1.5s
-  setTimeout(function(){
-    try {
-      var gl = renderer.getContext();
-      var pixels = new Uint8Array(4);
-      gl.readPixels(400, 300, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-      console.log('[3D Debug] Pixel at center: R='+pixels[0]+' G='+pixels[1]+' B='+pixels[2]+' A='+pixels[3]);
-      console.log('[3D Debug] WebGL context lost:', gl.isContextLost());
-    } catch(e) { console.error('[3D Debug] Pixel readback failed:', e.message); }
-  }, 1500);
 }
 
 function buildScene(){
   var data = getBuildingData();
   data.forEach(function(item){
     var pos = getBuildingPos(item.addr);
-    var x = pos.c * SPACING;
-    var z = pos.r * SPACING;
-    if(!buildingGroups[item.addr]){
-      buildingGroups[item.addr] = new THREE.Group();
-      buildingGroups[item.addr].position.set(x, 0, z);
-      scene.add(buildingGroups[item.addr]);
-    }
-    var group = buildingGroups[item.addr];
+    var x = pos.c*SPACING, z = pos.r*SPACING;
+    if(!buildingGroups[item.addr]){ buildingGroups[item.addr] = new THREE.Group(); buildingGroups[item.addr].position.set(x,0,z); scene.add(buildingGroups[item.addr]); }
+    var g = buildingGroups[item.addr];
     if(item.isLandOnly){
-      var geo = new THREE.CylinderGeometry(0.8, 0.8, 0.2, 16);
-      var mat = new THREE.MeshLambertMaterial({ color: getStatusColor(item.status) });
-      var mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(0, 0.1, 0);
-      mesh.userData = item;
-      group.add(mesh);
-      floorMeshes.push(mesh);
+      var m = new THREE.Mesh(new THREE.CylinderGeometry(0.8,0.8,0.2,16), new THREE.MeshLambertMaterial({color:getStatusColor(item.status)}));
+      m.position.set(0,0.1,0); m.userData = item; g.add(m); floorMeshes.push(m);
     } else {
-      var y = (item.floorNum - 1) * FLOOR_HEIGHT + FLOOR_HEIGHT / 2;
-      var geo = new THREE.BoxGeometry(FLOOR_WIDTH - 0.1, FLOOR_HEIGHT, FLOOR_DEPTH - 0.1);
-      var mat = new THREE.MeshLambertMaterial({ color: getStatusColor(item.status) });
-      var mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(0, y, 0);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.userData = item;
-      group.add(mesh);
-      floorMeshes.push(mesh);
+      var y = (item.floorNum-1)*FLOOR_HEIGHT+FLOOR_HEIGHT/2;
+      var m = new THREE.Mesh(new THREE.BoxGeometry(FLOOR_WIDTH-0.1,FLOOR_HEIGHT,FLOOR_DEPTH-0.1), new THREE.MeshLambertMaterial({color:getStatusColor(item.status)}));
+      m.position.set(0,y,0); m.castShadow=true; m.receiveShadow=true; m.userData=item; g.add(m); floorMeshes.push(m);
     }
-    var maxFloorData = data.filter(function(d){return d.addr === item.addr && !d.isLandOnly;});
-    if(maxFloorData.length > 0){
-      var maxFloor = Math.max.apply(null, maxFloorData.map(function(d){return d.floorNum;}));
-      if(item.floorNum === maxFloor){
-        var shortAddr = item.addr.replace('福國路','').replace('中山北路六段35巷','中35巷');
-        var label = makeTextSprite(shortAddr);
-        label.position.set(0, maxFloor * FLOOR_HEIGHT + 1.5, 0);
-        group.add(label);
+    var maxD = data.filter(function(d){return d.addr===item.addr&&!d.isLandOnly;});
+    if(maxD.length>0){
+      var maxF = Math.max.apply(null,maxD.map(function(d){return d.floorNum;}));
+      if(item.floorNum===maxF){
+        var sa = item.addr.replace('福國路','').replace('中山北路六段35巷','中35巷');
+        var lbl = makeTextSprite(sa);
+        lbl.position.set(0, maxF*FLOOR_HEIGHT+1.5, 0);
+        g.add(lbl);
       }
     }
   });
 }
 
-function animate(){
-  requestAnimationFrame(animate);
-  controls.update();
-  renderer.render(scene, camera);
-}
-// Diagnostic: log once after 1s
-setTimeout(function(){
-  console.log('[3D Debug] After 1s - map3dReady:', map3dReady, 'floorMeshes:', floorMeshes.length, 'scene children:', scene ? scene.children.length : 'N/A');
-  if(renderer){
-    var canvas = renderer.domElement;
-    console.log('[3D Debug] Canvas size:', canvas.width, 'x', canvas.height, 'parent:', canvas.parentElement ? canvas.parentElement.id : 'none');
-  }
-}, 1000);
+function animate(){ requestAnimationFrame(animate); controls.update(); renderer.render(scene,camera); }
 
-function onMouseMove(event){
-  var rect = renderer.domElement.getBoundingClientRect();
-  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-  raycaster.setFromCamera(mouse, camera);
-  var intersects = raycaster.intersectObjects(floorMeshes);
-  var tooltip = document.getElementById('3dmap-tooltip');
+function onMouseMove(e){
+  var r = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX-r.left)/r.width)*2-1;
+  mouse.y = -((e.clientY-r.top)/r.height)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+  var hits = raycaster.intersectObjects(floorMeshes);
+  var tip = document.getElementById('3dmap-tooltip');
   var S = window.STATUS || {};
-  if(intersects.length > 0){
-    var hit = intersects[0].object.userData;
-    if(hoveredFloor && hoveredFloor !== intersects[0].object){
-      hoveredFloor.material.emissive.setHex(0x000000);
-    }
-    hoveredFloor = intersects[0].object;
+  if(hits.length>0){
+    var hit = hits[0].object.userData;
+    if(hoveredFloor&&hoveredFloor!==hits[0].object) hoveredFloor.material.emissive.setHex(0);
+    hoveredFloor = hits[0].object;
     hoveredFloor.material.emissive.setHex(0x333333);
-    var cfg = S[hit.status] || {label:hit.status,color:'#888',bg:'#eee',icon:'?'};
-    tooltip.style.display = 'block';
-    tooltip.style.left = Math.min(event.clientX - rect.left + 15, rect.width - 290) + 'px';
-    tooltip.style.top = Math.min(event.clientY - rect.top + 15, rect.height - 180) + 'px';
-    tooltip.innerHTML = '<div class="addr">' + hit.addr + ' ' + hit.floor + '</div>' +
-      '<div class="row"><span class="label">所有權人</span><span class="val">' + hit.owner + '</span></div>' +
-      '<div class="row"><span class="label">狀態</span><span class="status-badge" style="background:' + cfg.bg + ';color:' + cfg.color + '">' + cfg.label + '</span></div>' +
-      '<div class="row"><span class="label">建物面積</span><span class="val">' + (hit.bldgArea || 0) + ' m²</span></div>' +
-      '<div class="row"><span class="label">土地持分</span><span class="val">' + (hit.landShare || 0).toFixed(2) + ' m²</span></div>' +
-      (hit.note ? '<div class="row" style="margin-top:6px;font-size:10px;color:#64748b">備註：' + hit.note + '</div>' : '');
-    renderer.domElement.style.cursor = 'pointer';
+    var cfg = S[hit.status]||{label:hit.status,color:'#888',bg:'#eee'};
+    tip.style.display='block';
+    tip.style.left=Math.min(e.clientX-r.left+15,r.width-290)+'px';
+    tip.style.top=Math.min(e.clientY-r.top+15,r.height-180)+'px';
+    tip.innerHTML='<div class="addr">'+hit.addr+' '+hit.floor+'</div><div class="row"><span class="label">所有權人</span><span class="val">'+hit.owner+'</span></div><div class="row"><span class="label">狀態</span><span class="status-badge" style="background:'+cfg.bg+';color:'+cfg.color+'">'+cfg.label+'</span></div><div class="row"><span class="label">建物面積</span><span class="val">'+(hit.bldgArea||0)+' m²</span></div><div class="row"><span class="label">土地持分</span><span class="val">'+(hit.landShare||0).toFixed(2)+' m²</span></div>'+(hit.note?'<div class="row" style="margin-top:6px;font-size:10px;color:#64748b">備註：'+hit.note+'</div>':'');
+    renderer.domElement.style.cursor='pointer';
   } else {
-    if(hoveredFloor){hoveredFloor.material.emissive.setHex(0x000000);hoveredFloor=null;}
-    tooltip.style.display = 'none';
-    renderer.domElement.style.cursor = 'grab';
+    if(hoveredFloor){hoveredFloor.material.emissive.setHex(0);hoveredFloor=null;}
+    tip.style.display='none';
+    renderer.domElement.style.cursor='grab';
   }
 }
 
-function onClick(event){
-  if(hoveredFloor){
-    var hit = hoveredFloor.userData;
-    if(window.showToast) window.showToast(hit.addr + ' ' + hit.floor + ' - ' + hit.owner);
-  }
-}
+function onClick(){ if(hoveredFloor){var h=hoveredFloor.userData;if(window.showToast)window.showToast(h.addr+' '+h.floor+' - '+h.owner);} }
 
-function onWindowResize(){
-  var wrapper = document.getElementById('3dmap-wrap');
-  if(!wrapper) return;
-  var w = wrapper.clientWidth;
-  var h = wrapper.clientHeight;
-  if(w < 10 || h < 10) return; // not ready yet, skip
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
-  renderer.setSize(w, h);
-  console.log('[Three.js] Resized to:', w, 'x', h);
+function onResize(){
+  var w=window.innerWidth, h=window.innerHeight-52;
+  if(w<50||h<50)return;
+  camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h);
 }
 
 function update3DMap(){
-  if(!map3dReady) return;
-  floorMeshes.forEach(function(mesh){mesh.geometry.dispose();mesh.material.dispose();});
-  floorMeshes = [];
-  Object.keys(buildingGroups).forEach(function(addr){scene.remove(buildingGroups[addr]);});
-  buildingGroups = {};
-  buildScene();
-  applyFilter();
-  var el = document.getElementById('3d-filter-status');
-  if(el){var labels = {all:'全部',agree:'同意',disagree:'不同意',other:'觀望中',pending:'聯繫中'};el.textContent = labels[currentFilter] || '全部';}
+  if(!map3dReady)return;
+  floorMeshes.forEach(function(m){m.geometry.dispose();m.material.dispose();});
+  floorMeshes=[]; Object.keys(buildingGroups).forEach(function(a){scene.remove(buildingGroups[a]);}); buildingGroups={};
+  buildScene(); applyFilter();
+  var el=document.getElementById('3d-filter-status');
+  if(el) el.textContent=({all:'全部',agree:'同意',disagree:'不同意',other:'觀望中',pending:'聯繫中'})[currentFilter]||'全部';
 }
 
-function applyFilter(){
-  floorMeshes.forEach(function(mesh){
-    var status = mesh.userData.status;
-    var isMatch = currentFilter === 'all' || status === currentFilter;
-    mesh.material.opacity = isMatch ? 1.0 : 0.15;
-    mesh.material.transparent = true;
-  });
-}
+function applyFilter(){ floorMeshes.forEach(function(m){var s=m.userData.status,ok=currentFilter==='all'||s===currentFilter; m.material.opacity=ok?1:0.15; m.material.transparent=true;}); }
 
-function set3DFilter(filter, btn){
-  currentFilter = filter;
-  document.querySelectorAll('#tab-3dmap .filter-btn').forEach(function(b){b.classList.remove('active');});
-  if(btn) btn.classList.add('active');
+function set3DFilter(f,btn){
+  currentFilter=f;
+  document.querySelectorAll('#3d-overlay-filters .filter-btn').forEach(function(b){b.classList.remove('active');});
+  if(btn)btn.classList.add('active');
   applyFilter();
-  var el = document.getElementById('3d-filter-status');
-  if(el){var labels = {all:'全部',agree:'同意',disagree:'不同意',other:'觀望中',pending:'聯繫中'};el.textContent = labels[currentFilter] || '全部';}
+  var el=document.getElementById('3d-filter-status');
+  if(el) el.textContent=({all:'全部',agree:'同意',disagree:'不同意',other:'觀望中',pending:'聯繫中'})[currentFilter]||'全部';
 }
 
 function render3DLegend(){
-  var legend = document.getElementById('3dmap-legend');
-  if(!legend) return;
-  var S = window.STATUS || {};
-  var html = '<div style="font-weight:800;margin-bottom:8px;color:#1e3a5f">圖例說明</div>';
-  Object.entries(S).forEach(function(entry){
-    html += '<div class="leg-row"><div class="leg-color" style="background:'+entry[1].color+'"></div><span class="leg-text">'+entry[1].label+'</span></div>';
-  });
-  html += '<div class="filter-status">目前篩選：<strong id="3d-filter-status">全部</strong></div>';
-  legend.innerHTML = html;
+  var lg=document.getElementById('3dmap-legend'); if(!lg)return;
+  var S=window.STATUS||{};
+  var h='<div style="font-weight:800;margin-bottom:8px;color:#1e3a5f">圖例說明</div>';
+  Object.entries(S).forEach(function(e){h+='<div class="leg-row"><div class="leg-color" style="background:'+e[1].color+'"></div><span class="leg-text">'+e[1].label+'</span></div>';});
+  h+='<div class="filter-status">目前篩選：<strong id="3d-filter-status">全部</strong></div>';
+  lg.innerHTML=h;
 }
 
-// Expose to global scope for main script
-window.init3DMap = init3DMap;
-window.update3DMap = update3DMap;
-window.set3DFilter = set3DFilter;
-window.map3dReady = false;
+window.init3DMap=init3DMap;
+window.update3DMap=update3DMap;
+window.set3DFilter=set3DFilter;
+window.map3dReady=false;
+</script>
+
+<!-- 3D Fullscreen Overlay -->
+<div id="three-overlay">
+  <div id="3d-overlay-header">
+    <span style="font-size:20px">🏗️</span>
+    <span class="title">3D 建物地圖 — 福國路都更</span>
+    <div id="3d-overlay-filters">
+      <button class="filter-btn active" onclick="set3DFilter('all',this)">全部</button>
+      <button class="filter-btn" onclick="set3DFilter('agree',this)">同意</button>
+      <button class="filter-btn" onclick="set3DFilter('disagree',this)">不同意</button>
+      <button class="filter-btn" onclick="set3DFilter('other',this)">觀望中</button>
+      <button class="filter-btn" onclick="set3DFilter('pending',this)">聯繫中</button>
+    </div>
+    <button id="3d-overlay-close" onclick="close3DOverlay()">✕ 關閉</button>
+  </div>
+  <div id="three-container"></div>
+  <div id="3dmap-tooltip"></div>
+  <div id="3dmap-legend"></div>
+</div>
+
+<script>
+function open3DOverlay(){
+  var overlay=document.getElementById('three-overlay');
+  overlay.classList.add('open');
+  document.body.style.overflow='hidden';
+  setTimeout(function(){if(window.init3DMap)window.init3DMap();},150);
+}
+function close3DOverlay(){
+  var overlay=document.getElementById('three-overlay');
+  overlay.classList.remove('open');
+  document.body.style.overflow='';
+}
+// Override switchTab for 3dmap - just switch to tab and show launch card
 </script>
 </body>
 </html>
