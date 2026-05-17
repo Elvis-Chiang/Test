@@ -157,6 +157,7 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f0f4f8;color:var(--slate-
 
 /* 卡片容器設為相對定位，以便遮罩定位 */
 .card { position: relative; overflow: hidden; }
+#tab-3dmap .card { overflow: visible; }
 
 /* 遮罩層樣式 */
 .card-loader {
@@ -332,7 +333,7 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f0f4f8;color:var(--slate-
 
   <!-- 3D 建物地圖 -->
   <div id="tab-3dmap" class="tab-panel">
-    <div class="card" style="padding:0;overflow:hidden">
+    <div class="card" style="padding:0;overflow:visible">
       <div class="card-title" style="padding:18px 18px 0">🏗️ 3D 建物地圖 <span style="font-size:10px;font-weight:400;color:#94a3b8">v3.0 Three.js</span></div>
       <div class="card-sub" style="padding:0 18px 8px">每棟建築依樓層繪製，顏色代表同意狀態 ｜ 拖曳旋轉 · 滾輪縮放 · 懸停查看</div>
       <div class="filter-bar" style="margin:0 18px 12px;border-radius:99px">
@@ -342,8 +343,8 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f0f4f8;color:var(--slate-
         <button class="filter-btn" onclick="set3DFilter('other',this)">觀望中</button>
         <button class="filter-btn" onclick="set3DFilter('pending',this)">聯繫中</button>
       </div>
-      <div id="3dmap-wrap" style="width:100%;height:600px;position:relative;border-radius:var(--rl);overflow:hidden;background:linear-gradient(180deg,#f0f9ff 0%,#e0f2fe 100%)">
-        <div id="three-container" style="position:absolute;top:0;left:0;width:100%;height:100%"></div>
+      <div id="3dmap-wrap" style="min-width:100%;height:600px;position:relative;border-radius:var(--rl);overflow:hidden;background:linear-gradient(180deg,#f0f9ff 0%,#e0f2fe 100%)">
+        <div id="three-container" style="width:100%;height:100%"></div>
         <div id="3dmap-tooltip" style="position:absolute;pointer-events:none;background:#fff;border-radius:12px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);font-size:11px;z-index:1000;display:none;max-width:280px;border:1px solid var(--slate-200)"></div>
         <div id="3dmap-legend" style="position:absolute;bottom:16px;left:16px;background:#fff;border-radius:12px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);font-size:10px;z-index:1000;border:1px solid var(--slate-200)"></div>
       </div>
@@ -1179,6 +1180,8 @@ var SPACING = 5;
 
 function getBuildingData(){
   var u = window.units || [];
+  console.log('[3D Debug] window.units length:', u.length);
+  if(u.length === 0){ console.error('[3D Debug] window.units is empty or undefined! typeof:', typeof window.units); }
   var addrMap = {};
   u.forEach(function(unit){
     if(!addrMap[unit.addr]) addrMap[unit.addr] = [];
@@ -1234,15 +1237,10 @@ function makeTextSprite(text){
 function init3DMap(){
   if(map3dReady) return;
   var container = document.getElementById('three-container');
-  if(!container){console.error('[Three.js] Container #three-container not found!');return;}
-  // Measure from the parent wrapper which has explicit height
-  var wrapper = document.getElementById('3dmap-wrap');
-  void (wrapper && wrapper.offsetHeight);
-  var w = wrapper ? (wrapper.clientWidth || 800) : 800;
-  var h = wrapper ? (wrapper.clientHeight || 600) : 600;
-  if(w < 10) w = 800;
-  if(h < 10) h = 600;
-  console.log('[Three.js] Container size:', w, 'x', h);
+  if(!container){console.error('[Three.js] Container not found!');return;}
+
+  // Always start with a fixed size, resize later
+  var w = 800, h = 600;
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xe0f2fe);
@@ -1292,12 +1290,35 @@ function init3DMap(){
   window.addEventListener('resize', onWindowResize);
 
   buildScene();
+  console.log('[3D Debug] floorMeshes:', floorMeshes.length, 'buildings:', Object.keys(buildingGroups).length);
   render3DLegend();
 
   map3dReady = true;
   window.map3dReady = true;
   console.log('[Three.js] 3D Map initialized!');
+
+  // Diagnostic: make canvas visually obvious
+  renderer.domElement.style.border = '3px solid red';
+  console.log('[3D Debug] Canvas parent:', container.parentElement ? container.parentElement.id : 'none');
+  console.log('[3D Debug] Canvas style:', renderer.domElement.style.cssText.substring(0,200));
+  console.log('[3D Debug] Container rect:', container.getBoundingClientRect().width, 'x', container.getBoundingClientRect().height);
+
   animate();
+
+  // Resize to real container size after browser has laid out
+  setTimeout(function(){ onWindowResize(); }, 200);
+  setTimeout(function(){ onWindowResize(); }, 500);
+
+  // Pixel readback test at 1.5s
+  setTimeout(function(){
+    try {
+      var gl = renderer.getContext();
+      var pixels = new Uint8Array(4);
+      gl.readPixels(400, 300, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      console.log('[3D Debug] Pixel at center: R='+pixels[0]+' G='+pixels[1]+' B='+pixels[2]+' A='+pixels[3]);
+      console.log('[3D Debug] WebGL context lost:', gl.isContextLost());
+    } catch(e) { console.error('[3D Debug] Pixel readback failed:', e.message); }
+  }, 1500);
 }
 
 function buildScene(){
@@ -1350,6 +1371,14 @@ function animate(){
   controls.update();
   renderer.render(scene, camera);
 }
+// Diagnostic: log once after 1s
+setTimeout(function(){
+  console.log('[3D Debug] After 1s - map3dReady:', map3dReady, 'floorMeshes:', floorMeshes.length, 'scene children:', scene ? scene.children.length : 'N/A');
+  if(renderer){
+    var canvas = renderer.domElement;
+    console.log('[3D Debug] Canvas size:', canvas.width, 'x', canvas.height, 'parent:', canvas.parentElement ? canvas.parentElement.id : 'none');
+  }
+}, 1000);
 
 function onMouseMove(event){
   var rect = renderer.domElement.getBoundingClientRect();
@@ -1393,12 +1422,14 @@ function onClick(event){
 
 function onWindowResize(){
   var wrapper = document.getElementById('3dmap-wrap');
-  if(!wrapper)return;
-  var w = wrapper.clientWidth || 800;
-  var h = wrapper.clientHeight || 600;
+  if(!wrapper) return;
+  var w = wrapper.clientWidth;
+  var h = wrapper.clientHeight;
+  if(w < 10 || h < 10) return; // not ready yet, skip
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
+  console.log('[Three.js] Resized to:', w, 'x', h);
 }
 
 function update3DMap(){
