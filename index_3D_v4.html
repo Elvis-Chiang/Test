@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>福國路都更整合系統</title>
+<title>福國路都更整合系統 v4.1</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="importmap">
@@ -343,7 +343,7 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f0f4f8;color:var(--slate-
         <button class="filter-btn" onclick="set3DFilter('pending',this)">聯繫中</button>
       </div>
       <div id="3dmap-wrap" style="width:100%;height:600px;position:relative;border-radius:var(--rl);overflow:hidden;background:linear-gradient(180deg,#f0f9ff 0%,#e0f2fe 100%)">
-        <div id="three-container" style="width:100%;height:600px"></div>
+        <div id="three-container" style="position:absolute;top:0;left:0;width:100%;height:100%"></div>
         <div id="3dmap-tooltip" style="position:absolute;pointer-events:none;background:#fff;border-radius:12px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);font-size:11px;z-index:1000;display:none;max-width:280px;border:1px solid var(--slate-200)"></div>
         <div id="3dmap-legend" style="position:absolute;bottom:16px;left:16px;background:#fff;border-radius:12px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);font-size:10px;z-index:1000;border:1px solid var(--slate-200)"></div>
       </div>
@@ -883,11 +883,12 @@ function addUnit(){
 function switchTab(name,btn){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
+  var panel=document.getElementById('tab-'+name);
+  panel.classList.add('active');
   btn.classList.add('active');
   if(name==='rank-bldg') renderRankBldg();
   else if(name==='rank-land') renderRankLand();
-  else if(name==='3dmap') { if(window.init3DMap) window.init3DMap(); }
+  else if(name==='3dmap'){ void panel.offsetHeight; setTimeout(function(){if(window.init3DMap)window.init3DMap();},50); }
 }
 function renderAll(){renderDashboard();renderSurvey();renderUnits();if(window.map3dReady && window.update3DMap) window.update3DMap();}
 function showToast(msg,type='success'){const el=document.getElementById('toast');el.textContent=(type==='error'?'⚠️ ':'✓ ')+msg;el.className='toast '+type;el.style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.style.display='none',2800);}
@@ -1233,19 +1234,25 @@ function makeTextSprite(text){
 function init3DMap(){
   if(map3dReady) return;
   var container = document.getElementById('three-container');
-  if(!container){console.warn('[Three.js] Container not found, retrying...');requestAnimationFrame(init3DMap);return;}
-  var rect = container.getBoundingClientRect();
-  if(rect.width < 10 || rect.height < 10){console.warn('[Three.js] Container too small ('+rect.width+'x'+rect.height+'), retrying...');requestAnimationFrame(init3DMap);return;}
+  if(!container){console.error('[Three.js] Container #three-container not found!');return;}
+  // Measure from the parent wrapper which has explicit height
+  var wrapper = document.getElementById('3dmap-wrap');
+  void (wrapper && wrapper.offsetHeight);
+  var w = wrapper ? (wrapper.clientWidth || 800) : 800;
+  var h = wrapper ? (wrapper.clientHeight || 600) : 600;
+  if(w < 10) w = 800;
+  if(h < 10) h = 600;
+  console.log('[Three.js] Container size:', w, 'x', h);
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xe0f2fe);
 
-  camera = new THREE.PerspectiveCamera(45, rect.width / rect.height, 0.1, 1000);
+  camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
   camera.position.set(60, 50, 60);
   camera.lookAt(50, 0, 30);
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(rect.width, rect.height);
+  renderer.setSize(w, h);
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.shadowMap.enabled = true;
   container.appendChild(renderer.domElement);
@@ -1385,12 +1392,13 @@ function onClick(event){
 }
 
 function onWindowResize(){
-  var container = document.getElementById('three-container');
-  if(!container)return;
-  var rect = container.getBoundingClientRect();
-  camera.aspect = rect.width / rect.height;
+  var wrapper = document.getElementById('3dmap-wrap');
+  if(!wrapper)return;
+  var w = wrapper.clientWidth || 800;
+  var h = wrapper.clientHeight || 600;
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(rect.width, rect.height);
+  renderer.setSize(w, h);
 }
 
 function update3DMap(){
