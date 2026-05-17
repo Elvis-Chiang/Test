@@ -343,7 +343,7 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f0f4f8;color:var(--slate-
         <button class="filter-btn" onclick="set3DFilter('pending',this)">聯繫中</button>
       </div>
       <div id="3dmap-wrap" style="width:100%;height:600px;position:relative;border-radius:var(--rl);overflow:hidden;background:linear-gradient(180deg,#f0f9ff 0%,#e0f2fe 100%)">
-        <div id="three-container" style="width:100%;height:100%"></div>
+        <div id="three-container" style="width:100%;height:600px"></div>
         <div id="3dmap-tooltip" style="position:absolute;pointer-events:none;background:#fff;border-radius:12px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);font-size:11px;z-index:1000;display:none;max-width:280px;border:1px solid var(--slate-200)"></div>
         <div id="3dmap-legend" style="position:absolute;bottom:16px;left:16px;background:#fff;border-radius:12px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);font-size:10px;z-index:1000;border:1px solid var(--slate-200)"></div>
       </div>
@@ -1163,9 +1163,8 @@ function getBuildingPos(addr){
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
-var scene, camera, renderer, labelRenderer, controls, raycaster, mouse;
+var scene, camera, renderer, controls, raycaster, mouse;
 var buildingGroups = {};
 var floorMeshes = [];
 var currentFilter = 'all';
@@ -1178,27 +1177,28 @@ var FLOOR_HEIGHT = 1;
 var SPACING = 5;
 
 function getBuildingData(){
+  var u = window.units || [];
   var addrMap = {};
-  units.forEach(function(u){
-    if(!addrMap[u.addr]) addrMap[u.addr] = [];
-    addrMap[u.addr].push(u);
+  u.forEach(function(unit){
+    if(!addrMap[unit.addr]) addrMap[unit.addr] = [];
+    addrMap[unit.addr].push(unit);
   });
   var result = [];
   Object.keys(addrMap).forEach(function(addr){
-    var bldgUnits = addrMap[addr].filter(function(u){return !u.isLandOnly;});
-    var landUnits = addrMap[addr].filter(function(u){return u.isLandOnly;});
+    var bldgUnits = addrMap[addr].filter(function(unit){return !unit.isLandOnly;});
+    var landUnits = addrMap[addr].filter(function(unit){return unit.isLandOnly;});
     if(bldgUnits.length > 0){
       var sorted = bldgUnits.slice().sort(function(a,b){return parseFloor(a.unit)-parseFloor(b.unit);});
-      sorted.forEach(function(u){
-        var fn = parseFloor(u.unit);
+      sorted.forEach(function(unit){
+        var fn = parseFloor(unit.unit);
         var pos = getBuildingPos(addr);
-        result.push({addr:addr,floorNum:fn,status:u.status,unitId:u.id,floor:u.unit,owner:u.owner,bldgArea:u.bldgArea,landShare:u.landShare,note:u.note,gridC:pos.c,gridR:pos.r,isLandOnly:false});
+        result.push({addr:addr,floorNum:fn,status:unit.status,unitId:unit.id,floor:unit.unit,owner:unit.owner,bldgArea:unit.bldgArea,landShare:unit.landShare,note:unit.note,gridC:pos.c,gridR:pos.r,isLandOnly:false});
       });
     }
     if(landUnits.length > 0 && bldgUnits.length === 0){
-      landUnits.forEach(function(u){
+      landUnits.forEach(function(unit){
         var pos = getBuildingPos(addr);
-        result.push({addr:addr,floorNum:0,status:u.status,unitId:u.id,floor:'純土地',owner:u.owner,bldgArea:0,landShare:u.landShare,note:u.note,gridC:pos.c,gridR:pos.r,isLandOnly:true});
+        result.push({addr:addr,floorNum:0,status:unit.status,unitId:unit.id,floor:'純土地',owner:unit.owner,bldgArea:0,landShare:unit.landShare,note:unit.note,gridC:pos.c,gridR:pos.r,isLandOnly:true});
       });
     }
   });
@@ -1210,12 +1210,32 @@ function getStatusColor(status){
   return m[status] || '#888888';
 }
 
+function makeTextSprite(text){
+  var canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 64;
+  var ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.fillRect(0,0,256,64);
+  ctx.font = 'bold 22px Noto Sans TC, sans-serif';
+  ctx.fillStyle = '#1e3a5f';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 128, 32);
+  var texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  var spriteMat = new THREE.SpriteMaterial({map: texture, transparent: true, depthTest: false});
+  var sprite = new THREE.Sprite(spriteMat);
+  sprite.scale.set(4, 1, 1);
+  return sprite;
+}
+
 function init3DMap(){
   if(map3dReady) return;
   var container = document.getElementById('three-container');
-  if(!container){console.warn('[Three.js] Container not found, retrying...');setTimeout(init3DMap,100);return;}
+  if(!container){console.warn('[Three.js] Container not found, retrying...');requestAnimationFrame(init3DMap);return;}
   var rect = container.getBoundingClientRect();
-  if(rect.width === 0 || rect.height === 0){console.warn('[Three.js] Container zero size, retrying...');setTimeout(init3DMap,100);return;}
+  if(rect.width < 10 || rect.height < 10){console.warn('[Three.js] Container too small ('+rect.width+'x'+rect.height+'), retrying...');requestAnimationFrame(init3DMap);return;}
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xe0f2fe);
@@ -1229,13 +1249,6 @@ function init3DMap(){
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.shadowMap.enabled = true;
   container.appendChild(renderer.domElement);
-
-  labelRenderer = new CSS2DRenderer();
-  labelRenderer.setSize(rect.width, rect.height);
-  labelRenderer.domElement.style.position = 'absolute';
-  labelRenderer.domElement.style.top = '0';
-  labelRenderer.domElement.style.pointerEvents = 'none';
-  container.appendChild(labelRenderer.domElement);
 
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
@@ -1317,12 +1330,8 @@ function buildScene(){
       var maxFloor = Math.max.apply(null, maxFloorData.map(function(d){return d.floorNum;}));
       if(item.floorNum === maxFloor){
         var shortAddr = item.addr.replace('福國路','').replace('中山北路六段35巷','中35巷');
-        var div = document.createElement('div');
-        div.className = 'label';
-        div.textContent = shortAddr;
-        div.style.cssText = 'font-size:10px;font-weight:700;color:#1e3a5f;text-align:center;';
-        var label = new CSS2DObject(div);
-        label.position.set(0, maxFloor * FLOOR_HEIGHT + 1, 0);
+        var label = makeTextSprite(shortAddr);
+        label.position.set(0, maxFloor * FLOOR_HEIGHT + 1.5, 0);
         group.add(label);
       }
     }
@@ -1333,7 +1342,6 @@ function animate(){
   requestAnimationFrame(animate);
   controls.update();
   renderer.render(scene, camera);
-  labelRenderer.render(scene, camera);
 }
 
 function onMouseMove(event){
@@ -1343,6 +1351,7 @@ function onMouseMove(event){
   raycaster.setFromCamera(mouse, camera);
   var intersects = raycaster.intersectObjects(floorMeshes);
   var tooltip = document.getElementById('3dmap-tooltip');
+  var S = window.STATUS || {};
   if(intersects.length > 0){
     var hit = intersects[0].object.userData;
     if(hoveredFloor && hoveredFloor !== intersects[0].object){
@@ -1350,7 +1359,7 @@ function onMouseMove(event){
     }
     hoveredFloor = intersects[0].object;
     hoveredFloor.material.emissive.setHex(0x333333);
-    var cfg = STATUS[hit.status];
+    var cfg = S[hit.status] || {label:hit.status,color:'#888',bg:'#eee',icon:'?'};
     tooltip.style.display = 'block';
     tooltip.style.left = Math.min(event.clientX - rect.left + 15, rect.width - 290) + 'px';
     tooltip.style.top = Math.min(event.clientY - rect.top + 15, rect.height - 180) + 'px';
@@ -1371,7 +1380,7 @@ function onMouseMove(event){
 function onClick(event){
   if(hoveredFloor){
     var hit = hoveredFloor.userData;
-    showToast(hit.addr + ' ' + hit.floor + ' - ' + hit.owner);
+    if(window.showToast) window.showToast(hit.addr + ' ' + hit.floor + ' - ' + hit.owner);
   }
 }
 
@@ -1382,7 +1391,6 @@ function onWindowResize(){
   camera.aspect = rect.width / rect.height;
   camera.updateProjectionMatrix();
   renderer.setSize(rect.width, rect.height);
-  labelRenderer.setSize(rect.width, rect.height);
 }
 
 function update3DMap(){
@@ -1418,8 +1426,9 @@ function set3DFilter(filter, btn){
 function render3DLegend(){
   var legend = document.getElementById('3dmap-legend');
   if(!legend) return;
+  var S = window.STATUS || {};
   var html = '<div style="font-weight:800;margin-bottom:8px;color:#1e3a5f">圖例說明</div>';
-  Object.entries(STATUS).forEach(function(entry){
+  Object.entries(S).forEach(function(entry){
     html += '<div class="leg-row"><div class="leg-color" style="background:'+entry[1].color+'"></div><span class="leg-text">'+entry[1].label+'</span></div>';
   });
   html += '<div class="filter-status">目前篩選：<strong id="3d-filter-status">全部</strong></div>';
